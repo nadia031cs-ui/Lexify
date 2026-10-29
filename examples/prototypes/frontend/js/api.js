@@ -1,16 +1,9 @@
-/* ==========================================================
-   Lexify - shared API client
-   Include on every page:  <script src="js/api.js"></script>
-   Backend contract: see API.md
-   ========================================================== */
+
 (function (global) {
     "use strict";
 
-    /* ---------- Settings (change here only) ---------- */
     var CONFIG = {
-        // Where your backend lives. "/api" = same domain as the website.
-        // For a separate backend, set before this script loads:
-        //   <script>window.LEXIFY_API_BASE = "http://localhost:8000/api";</script>
+        
         API_BASE: global.LEXIFY_API_BASE || "/api",
         TOKEN_KEY: "lexify_token",
         USER_KEY: "lexify_user",
@@ -21,7 +14,6 @@
         DOWNLOAD_REQUIRES_LOGIN: true
     };
 
-    /* ---------- Local session (token + cached user) ---------- */
     function read(key) {
         try { return localStorage.getItem(key); } catch (e) { return null; }
     }
