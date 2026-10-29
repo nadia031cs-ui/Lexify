@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lexify – Java Compiler</title>
+
+    <style>
+        /* ---------- Theme tokens (light) ---------- */
+        :root {
+            --bg: #faf4ef;
+            --bg-glow: rgba(255, 122, 26, .10);
+            --header-bg: #ffffff;
+            --side-bg: #ffffff;
+            --panel: #ffffff;
+            --panel-2: #fdf6f0;
+            --code-bg: #fefaf6;
+            --line: #efdccd;
+            --ink: #14203a;
+            --ink-soft: #5b6b8c;
+            --accent: #e8630a;
+            --accent-ink: #ffffff;
+            --accent-soft: #ffeadb;
+            --danger: #d64545;
+            --shadow: 0 1px 2px rgba(20, 32, 58, .05), 0 8px 24px rgba(20, 32, 58, .06);
+
+            --tk-comment: #7a88a8;
+            --tk-pre: #b0189a;
+            --tk-string: #0a8a3a;
+            --tk-number: #b4570a;
+            --tk-keyword: #b0189a;
+            --tk-type: #0b6fa8;
+
+            --header-h: 68px;
+            --side-w: 250px;
+            --radius: 14px;
+            color-scheme: light;
+        }
+
+        /* ---------- Theme tokens (dark) ---------- */
+        :root[data-theme="dark"] {
+            --bg: #070b1a;
+            --bg-glow: rgba(255, 122, 26, .20);
+            --header-bg: #0a0e20;
+            --side-bg: #0a0e20;
+            --panel: #0d1226;
+            --panel-2: #141a32;
+            --code-bg: #070b18;
+            --line: #3a2414;
+            --ink: #e8efff;
+            --ink-soft: #9db0d6;
+            --accent: #ff7a1a;
+            --accent-ink: #ffffff;
+            --accent-soft: #3a1d0a;
+            --danger: #ff7b7b;
+            --shadow: 0 0 0 1px rgba(255, 122, 26, .06), 0 12px 40px rgba(0, 0, 20, .5);
+
+            --tk-comment: #6c7fa8;
+            --tk-pre: #f06bd0;
+            --tk-string: #5be37d;
+            --tk-number: #ffb86b;
+            --tk-keyword: #f06bd0;
+            --tk-type: #4fc3ff;
+            color-scheme: dark;
+        }
+
+        /* ---------- Base ---------- */
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: var(--side-w) minmax(0, 1fr);
+            grid-template-rows: var(--header-h) 1fr;
+            grid-template-areas:
+                "header header"
+                "side   main";
+            background:
+                radial-gradient(900px 420px at 70% 0%, var(--bg-glow), transparent 70%),
+                var(--bg);
+            color: var(--ink);
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.5;
+            transition: background-color .25s, color .25s;
+        }
+
+        a { color: inherit; text-decoration: none; }
+        button { font: inherit; color: inherit; }
+
+        :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+        .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+        .icon {
+            width: 18px;
+            height: 18px;
+            flex: none;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* ---------- Header ---------- */
+        header {
+            grid-area: header;
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            padding: 0 24px;
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .Logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-right: auto;
+            font-size: 1.35rem;
+            font-weight: 700;
+            letter-spacing: -.01em;
+        }
+
+        .Logo img {
+            display: block;
+            height: 48px;       /* change this to make the logo bigger or smaller */
+            width: auto;        /* keeps the original proportions */
+            max-width: 200px;
+            object-fit: contain;
+        }
+
+        .theme-toggle { order: 1; }
+        header nav { order: 2; display: flex; }
+
+        .account {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 10px;
+            border-radius: 10px;
+            font-size: .92rem;
+            color: var(--ink);
+            transition: background .15s;
+        }
+
+        .account:hover { background: var(--accent-soft); }
+
+        .account .avatar {
+            display: grid;
+            place-items: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: 2px solid var(--ink-soft);
+            color: var(--ink-soft);
+        }
+
+        .account .icon:last-child { width: 14px; height: 14px; color: var(--ink-soft); }
+
+        /* ---------- Theme toggle ---------- */
+        .theme-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 12px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            cursor: pointer;
+            color: var(--ink-soft);
+        }
+
+        .theme-toggle svg {
+            width: 16px;
+            height: 16px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .theme-toggle .track {
+            position: relative;
+            width: 42px;
+            height: 22px;
+            border-radius: 999px;
+            background: var(--accent);
+        }
+
+        .theme-toggle .knob {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #fff;
+            transition: transform .2s;
+        }
+
+        .theme-toggle[aria-checked="true"] .knob { transform: translateX(20px); }
+
+        /* ---------- Sidebar ---------- */
+        #left {
+            grid-area: side;
+            position: sticky;
+            top: var(--header-h);
+            height: calc(100vh - var(--header-h));
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            padding: 22px 16px;
+            background: var(--side-bg);
+            border-right: 1px solid var(--line);
+            overflow-y: auto;
+        }
+
+        #pg, #extra, #logout { display: flex; flex-direction: column; gap: 4px; }
+
+        #extra { padding-top: 18px; border-top: 1px solid var(--line); }
+        #logout { margin-top: auto; padding-top: 18px; border-top: 1px solid var(--line); }
+
+        #left a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 14px;
+            border-radius: 10px;
+            font-size: .95rem;
+            color: var(--ink);
+            transition: background .15s;
+        }
+
+        #left a:hover { background: var(--accent-soft); }
+
+        #left a.active { background: var(--accent); color: var(--accent-ink); }
+
+        #left a .chev { margin-left: auto; width: 16px; height: 16px; }
+
+        #extra a .icon, #logout a .icon, #pg a .icon { color: var(--ink-soft); }
+        #pg a.active .icon { color: var(--accent-ink); }
+
+        .lang {
+            display: grid;
+            place-items: center;
+            width: 26px;
+            height: 26px;
+            border-radius: 7px;
+            font-size: .78rem;
+            font-weight: 800;
+            color: #fff;
+        }
+
+        .lang.c    { background: #1f8bff; }
+        .lang.cpp  { background: #e0383e; }
+        .lang.java { background: #f5822a; }
+        #left a.active .lang.java { background: #fff; color: var(--accent); }
+
+        /* ---------- Main ---------- */
+        #c-body {
+            grid-area: main;
+            min-width: 0;
+            width: 100%;
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 28px clamp(16px, 3vw, 40px) 48px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Hero */
+        .hero { position: relative; display: flex; flex-direction: column; gap: 22px; }
+
+        #title { display: flex; align-items: center; gap: 18px; position: relative; z-index: 1; }
+
+        #title .hex { width: 92px; height: 92px; flex: none; filter: drop-shadow(0 8px 20px rgba(255, 122, 26, .45)); }
+
+        #title h1 {
+            margin: 0;
+            font-size: clamp(1.9rem, 4vw, 2.6rem);
+            line-height: 1.1;
+            letter-spacing: -.02em;
+        }
+
+        #title p { margin: 6px 0 0; color: var(--ink-soft); font-size: 1.1rem; }
+
+        .hero-art {
+            position: absolute;
+            top: -34px;
+            right: -10px;
+            width: min(560px, 52%);
+            height: auto;
+            pointer-events: none;
+        }
+
+        /* Feature pills */
+        #main-features-c {
+            position: relative;
+            z-index: 1;
+            align-self: flex-start;
+            display: flex;
+            flex-wrap: wrap;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        #main-features-c > div {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+        }
+
+        #main-features-c > div + div { border-left: 1px solid var(--line); }
+
+        #main-features-c .icon { color: var(--accent); width: 22px; height: 22px; }
+        #main-features-c h4 { margin: 0; font-size: .88rem; font-weight: 500; }
+
+        /* Layout columns */
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 20px;
+            align-items: start;
+        }
+
+        .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        /* ---------- Editor panel ---------- */
+        #editor-panel { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+
+        #input-c { display: flex; align-items: center; gap: 8px; }
+
+        #scroll-c { flex: 1; min-width: 0; overflow-x: auto; }
+
+        #tabs { display: flex; gap: 8px; }
+
+        #tab {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            border-bottom: 2px solid var(--accent);
+            border-radius: 10px 10px 0 0;
+            cursor: default;
+        }
+
+        #fileInput {
+            width: 11ch;
+            padding: 0;
+            font: inherit;
+            font-size: .92rem;
+            color: var(--ink);
+            background: none;
+            border: 0;
+            outline: none;
+        }
+
+        #fileInput:focus { text-decoration: underline; text-decoration-color: var(--accent); }
+
+        .icon-btn {
+            display: inline-grid;
+            place-items: center;
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            background: none;
+            border: 0;
+            border-radius: 8px;
+            color: var(--ink-soft);
+            cursor: pointer;
+        }
+
+        .icon-btn:hover { background: var(--accent-soft); color: var(--ink); }
+
+        .icon-btn.boxed { border: 1px solid var(--line); background: var(--panel-2); width: 36px; height: 36px; }
+
+        .text-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            font-size: .88rem;
+            color: var(--ink);
+            cursor: pointer;
+        }
+
+        .text-btn:hover { background: var(--accent-soft); }
+
+        /* Code editor */
+        .editor {
+            display: grid;
+            grid-template-columns: 52px minmax(0, 1fr);
+            height: 340px;
+            background: var(--code-bg);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            overflow: hidden;
+            font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+            font-size: 15px;
+            line-height: 24px;
+        }
+
+        .editor.expanded { height: 620px; }
+
+        #lines {
+            margin: 0;
+            padding: 12px 12px 12px 0;
+            text-align: right;
+            color: var(--ink-soft);
+            border-right: 1px solid var(--line);
+            overflow: hidden;
+            user-select: none;
+            white-space: pre;
+        }
+
+        .code-wrap { position: relative; min-width: 0; }
+
+        #hl, #input {
+            position: absolute;
+            inset: 0;
+            margin: 0;
+            padding: 12px 16px;
+            border: 0;
+            font: inherit;
+            letter-spacing: 0;
+            white-space: pre;
+            tab-size: 4;
+        }
+
+        #hl { overflow: hidden; color: var(--ink); pointer-events: none; }
+
+        #input {
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            resize: none;
+            color: transparent;
+            caret-color: var(--ink);
+            background: transparent;
+            outline: none;
+        }
+
+        #input::selection { background: rgba(255, 122, 26, .35); }
+        #input::placeholder { color: var(--ink-soft); opacity: .7; }
+
+        .tk-c { color: var(--tk-comment); font-style: italic; }
+        .tk-p { color: var(--tk-pre); }
+        .tk-h, .tk-s { color: var(--tk-string); }
+        .tk-k { color: var(--tk-keyword); }
+        .tk-t { color: var(--tk-type); }
+        .tk-n { color: var(--tk-number); }
+
+        /* Controls */
+        .controls { display: flex; align-items: center; gap: 12px; }
+
+        #run {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 26px;
+            font-weight: 600;
+            color: var(--accent-ink);
+            background: var(--accent);
+            border: 0;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 6px 18px rgba(255, 122, 26, .35);
+            transition: filter .15s, transform .05s;
+        }
+
+        #run:hover { filter: brightness(1.1); }
+        #run:active { transform: translateY(1px); }
+        #run .icon { width: 16px; height: 16px; }
+
+
+
+
+        /* ---------- Output panel ---------- */
+        #output-panel { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+
+        .panel-head { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+        .panel-head .icon { color: var(--ink-soft); }
+        .panel-head .icon-btn { margin-left: auto; }
+
+        #output {
+            width: 100%;
+            height: 200px;
+            min-height: 120px;
+            padding: 14px 16px;
+            font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+            font-size: .92rem;
+            line-height: 1.7;
+            color: var(--ink);
+            background: var(--code-bg);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            resize: vertical;
+        }
+
+        #output:focus { outline: none; border-color: var(--accent); }
+        #output.error { color: var(--danger); }
+        #output::placeholder { color: var(--ink-soft); opacity: .7; }
+
+        /* ---------- Responsive ---------- */
+        @media (max-width: 1100px) {
+            .layout { grid-template-columns: minmax(0, 1fr); }
+            .hero-art { display: none; }
+        }
+
+        @media (max-width: 800px) {
+            body {
+                grid-template-columns: minmax(0, 1fr);
+                grid-template-rows: var(--header-h) auto 1fr;
+                grid-template-areas: "header" "side" "main";
+            }
+
+            header { padding: 0 14px; gap: 10px; }
+            .account span { display: none; }
+
+            #left {
+                position: static;
+                height: auto;
+                flex-direction: row;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 8px;
+                padding: 10px 14px;
+                border-right: 0;
+                border-bottom: 1px solid var(--line);
+            }
+
+            #pg, #extra, #logout { flex-direction: row; flex-wrap: wrap; border-top: 0; padding-top: 0; }
+            #logout { margin: 0 0 0 auto; }
+            #left a .chev { display: none; }
+
+            #title .hex { width: 64px; height: 64px; }
+            .controls { flex-wrap: wrap; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { transition: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Icon sprite -->
+    <svg class="sprite" aria-hidden="true" focusable="false">
+        <defs>
+            <linearGradient id="gHex" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#ffa24d"/>
+                <stop offset="1" stop-color="#e8630a"/>
+            </linearGradient>
+        </defs>
+
+        <symbol id="hex-c" viewBox="0 0 100 100">
+            <polygon points="50,4 90,27 90,73 50,96 10,73 10,27" fill="url(#gHex)" stroke="url(#gHex)" stroke-width="6" stroke-linejoin="round"/>
+            <path d="M46 20c6 6-6 8 0 14s-4 8 0 12M56 22c5 5-5 7 0 12" stroke="#fff" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+            <path d="M36 52h26v8a11 11 0 0 1-11 11h-4a11 11 0 0 1-11-11z" fill="#fff"/>
+            <path d="M62 55h3a5.5 5.5 0 0 1 0 11h-5" stroke="#fff" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+            <path d="M33 79h34" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>
+        </symbol>
+
+        <symbol id="hex-code" viewBox="-50 -50 100 100">
+            <polygon points="0,-44 38,-22 38,22 0,44 -38,22 -38,-22" fill="#5a2a08" fill-opacity=".7" stroke="#ff8a2b" stroke-width="3" stroke-linejoin="round"/>
+            <text text-anchor="middle" y="9" font-size="26" font-weight="700" fill="#ffb070" font-family="ui-monospace, monospace">&lt;/&gt;</text>
+        </symbol>
+
+        <symbol id="cup" viewBox="0 0 100 100">
+            <path d="M46 20c6 6-6 8 0 14s-4 8 0 12M56 22c5 5-5 7 0 12" stroke="#ff8a2b" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+            <path d="M36 52h26v8a11 11 0 0 1-11 11h-4a11 11 0 0 1-11-11z" fill="#ff8a2b"/>
+            <path d="M62 55h3a5.5 5.5 0 0 1 0 11h-5" stroke="#ff8a2b" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+            <path d="M33 79h34" stroke="#ff8a2b" stroke-width="3.5" stroke-linecap="round"/>
+        </symbol>
+
+        <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+        <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3"/></symbol>
+        <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
+        <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4M16 8l4 4-4 4M20 12H9"/></symbol>
+        <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+        <symbol id="i-chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+        <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></symbol>
+        <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></symbol>
+        <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.2 8 8 9 4.8-1 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/></symbol>
+        <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></symbol>
+        <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 13h6M9 17h6"/></symbol>
+        <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+        <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+        <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></symbol>
+        <symbol id="i-expand" viewBox="0 0 24 24"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></symbol>
+        <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13-8z" fill="currentColor"/></symbol>
+        <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></symbol>
+        <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+        <symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></symbol>
+        <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+        <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M12 15h5"/></symbol>
+    </svg>
+
+    <header>
+
+        <div class="Logo">
+            <img src="./final.png" alt="">
+        </div>
+
+        <nav>
+            <a href="account.html" class="account">
+                <span class="avatar"><svg class="icon" aria-hidden="true"><use href="#i-user"/></svg></span>
+                <span>Account</span>
+                <svg class="icon" aria-hidden="true"><use href="#i-chev-d"/></svg>
+            </a>
+        </nav>
+
+        <button id="Toggle" class="theme-toggle" type="button" role="switch" aria-checked="false" aria-label="Toggle dark mode">
+            <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="4"></circle>
+                <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+            </svg>
+            <span class="track"><span class="knob"></span></span>
+            <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+            </svg>
+        </button>
+
+    </header>
+
+    <aside id="left">
+        <div id="pg">
+            <a href="index.html"><svg class="icon" aria-hidden="true"><use href="#i-home"/></svg>Home</a>
+            <a href="c.html"><span class="lang c">C</span>C</a>
+            <a href="cpp.html"><span class="lang cpp">C+</span>C++</a>
+            <a href="java.html" class="active" aria-current="page"><span class="lang java">J</span>Java<svg class="icon chev" aria-hidden="true"><use href="#i-chev-r"/></svg></a>
+        </div>
+
+        <div id="extra">
+            <a href="download.html"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>Download</a>
+            <a href="Contactus.html"><svg class="icon" aria-hidden="true"><use href="#i-mail"/></svg>Contact us</a>
+        </div>
+
+        <div id="logout">
+            <a href="logout.html"><svg class="icon" aria-hidden="true"><use href="#i-logout"/></svg>Logout</a>
+        </div>
+    </aside>
+
+    <main id="c-body">
+
+        <section class="hero">
+            <svg class="hero-art" viewBox="0 0 600 260" aria-hidden="true">
+                <defs>
+                    <radialGradient id="gGlow">
+                        <stop offset="0" stop-color="#ff7a1a" stop-opacity=".55"/>
+                        <stop offset="1" stop-color="#ff7a1a" stop-opacity="0"/>
+                    </radialGradient>
+                    <linearGradient id="gScr" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0" stop-color="#6b2a08"/>
+                        <stop offset="1" stop-color="#2a1004"/>
+                    </linearGradient>
+                </defs>
+                <path d="M0 200 C80 120 160 170 240 110 S400 60 600 120 V260 H0z" fill="#e8630a" opacity=".14"/>
+                <ellipse cx="330" cy="222" rx="230" ry="30" fill="url(#gGlow)"/>
+                <polygon points="250,30 440,14 432,160 244,176" fill="url(#gScr)" stroke="#ff8a2b" stroke-width="3" stroke-linejoin="round"/>
+                <polygon points="226,176 432,160 480,190 262,212" fill="#c24e08" stroke="#ffa24d" stroke-width="2" stroke-linejoin="round"/>
+                <use href="#cup" x="296" y="36" width="88" height="88"/>
+                <text x="340" y="132" text-anchor="middle" font-size="26" font-style="italic" font-weight="700" fill="#ff8a2b" font-family="system-ui, sans-serif">Java</text>
+                <use href="#hex-code" x="60" y="68" width="100" height="100"/>
+                <use href="#hex-code" x="470" y="64" width="90" height="90"/>
+            </svg>
+
+            <div id="title">
+                <svg class="hex" viewBox="0 0 100 100" aria-hidden="true"><use href="#hex-c"/></svg>
+                <div>
+                    <h1 id="c-h1">Java Compiler</h1>
+                    <p>Write. Compile. Run. Anywhere.</p>
+                </div>
+            </div>
+
+            <div id="main-features-c">
+                <div>
+                    <svg class="icon" aria-hidden="true"><use href="#i-cube"/></svg>
+                    <h4>Object-Oriented Programming</h4>
+                </div>
+
+                <div>
+                    <svg class="icon" aria-hidden="true"><use href="#i-monitor"/></svg>
+                    <h4>Portable</h4>
+                </div>
+
+                <div>
+                    <svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg>
+                    <h4>Secure &amp; Reliable</h4>
+                </div>
+            </div>
+        </section>
+
+        <div class="layout">
+
+            <!-- Left column: editor + output -->
+            <div class="col">
+
+                <section id="editor-panel" class="panel">
+
+                    <div id="input-c">
+                        <section id="scroll-c">
+                            <div id="tabs">
+                                <div id="tab">
+                                    <svg class="icon" aria-hidden="true"><use href="#i-file"/></svg>
+                                    <input type="text" id="fileInput" value="Main.java" placeholder="File name" aria-label="File name" spellcheck="false">
+                                    <button id="closeTab" class="icon-btn" type="button" aria-label="Close file" style="width:22px;height:22px;"><svg class="icon" style="width:14px;height:14px" aria-hidden="true"><use href="#i-x"/></svg></button>
+                                </div>
+                            </div>
+                        </section>
+
+                        <button id="clearBtn" class="text-btn" type="button"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg>Clear</button>
+                        <button id="expandBtn" class="icon-btn boxed" type="button" aria-label="Expand editor"><svg class="icon" aria-hidden="true"><use href="#i-expand"/></svg></button>
+                    </div>
+
+                    <div class="editor" id="editor">
+                        <pre id="lines" aria-hidden="true">1</pre>
+                        <div class="code-wrap">
+                            <pre id="hl" aria-hidden="true"></pre>
+                            <textarea id="input" rows="10" wrap="off" spellcheck="false" placeholder="Write your code here..." aria-label="Code editor"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="controls">
+                        <button id="run" type="button"><svg class="icon" aria-hidden="true"><use href="#i-play"/></svg>Run</button>
+                    </div>
+
+                </section>
+
+                <section id="output-panel" class="panel">
+                    <div class="panel-head">
+                        <svg class="icon" aria-hidden="true"><use href="#i-terminal"/></svg>
+                        <label for="output">Output</label>
+                        <button id="copyBtn" class="icon-btn" type="button" aria-label="Copy output"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg></button>
+                    </div>
+                    <textarea id="output" rows="6" readonly spellcheck="false" placeholder="Output will appear here..."></textarea>
+                </section>
+
+            </div>
+
+        </div>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script>
+        // ---------- Dark mode toggle ----------
+        const root = document.documentElement;
+        const toggle = document.getElementById("Toggle");
+
+        function setTheme(theme) {
+            root.setAttribute("data-theme", theme);
+            toggle.setAttribute("aria-checked", theme === "dark");
+            try { localStorage.setItem("lexify-theme", theme); } catch (e) {}
+        }
+
+        let saved = null;
+        try { saved = localStorage.getItem("lexify-theme"); } catch (e) {}
+        setTheme(saved || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+
+        toggle.addEventListener("click", () => {
+            setTheme(root.getAttribute("data-theme") === "dark" ? "light" : "dark");
+        });
+
+        // ---------- Elements ----------
+        const codeBox   = document.getElementById("input");
+        const hl        = document.getElementById("hl");
+        const lines     = document.getElementById("lines");
+        const outputBox = document.getElementById("output");
+        const fileInput = document.getElementById("fileInput");
+        const editor    = document.getElementById("editor");
+
+        // ---------- Syntax highlighting + line numbers ----------
+        const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+        const TOKEN = new RegExp([
+            "(\\/\\*[\\s\\S]*?\\*\\/|\\/\\/[^\\n]*)",                 // 1 comment
+            "(^[ \\t]*(?:import|package)\\b)",                                  // 2 preprocessor
+            "(\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\\\n])*')",  // 3 string / char
+            "(\\b(?!System\\b)[A-Z][A-Za-z0-9_]*\\b)",                                        // 4 header
+            "\\b(public|private|protected|class|interface|extends|implements|static|final|abstract|void|int|long|short|byte|char|float|double|boolean|if|else|for|while|do|switch|case|default|break|continue|return|new|this|super|try|catch|finally|throw|throws|true|false|null|enum|instanceof)\\b", // 5 keyword
+            "\\b(\\d+(?:\\.\\d+)?)\\b"                                 // 6 number
+        ].join("|"), "gm");
+
+        const CLASSES = [null, "tk-c", "tk-p", "tk-s", "tk-t", "tk-k", "tk-n"];
+
+        function highlight(src) {
+            let out = "", last = 0, m;
+            TOKEN.lastIndex = 0;
+            while ((m = TOKEN.exec(src)) !== null) {
+                if (m[0] === "") { TOKEN.lastIndex++; continue; }
+                out += esc(src.slice(last, m.index));
+                const idx = m.findIndex((v, i) => i > 0 && v !== undefined);
+                out += '<span class="' + CLASSES[idx] + '">' + esc(m[0]) + "</span>";
+                last = m.index + m[0].length;
+            }
+            return out + esc(src.slice(last)) + "\n";
+        }
+
+        function refreshEditor() {
+            hl.innerHTML = highlight(codeBox.value);
+            const count = codeBox.value.split("\n").length;
+            let nums = "";
+            for (let i = 1; i <= count; i++) nums += i + "\n";
+            lines.textContent = nums;
+            syncScroll();
+        }
+
+        function syncScroll() {
+            hl.scrollTop = lines.scrollTop = codeBox.scrollTop;
+            hl.scrollLeft = codeBox.scrollLeft;
+        }
+
+        codeBox.addEventListener("input", refreshEditor);
+        codeBox.addEventListener("scroll", syncScroll);
+
+        // Tab key inserts 4 spaces instead of moving focus
+        codeBox.addEventListener("keydown", e => {
+            if (e.key === "Tab") {
+                e.preventDefault();
+                const s = codeBox.selectionStart;
+                codeBox.setRangeText("    ", s, codeBox.selectionEnd, "end");
+                refreshEditor();
+            }
+        });
+
+        // ---------- Examples ----------
+        const EXAMPLES = {
+            hello: [
+                "public class Main {",
+                "    public static void main(String[] args) {",
+                '        System.out.println("Hello, Java!");',
+                "    }",
+                "}"
+            ],
+            io: [
+                "import java.util.Scanner;",
+                "",
+                "public class Main {",
+                "    public static void main(String[] args) {",
+                "        Scanner sc = new Scanner(System.in);",
+                '        System.out.print("Enter your name: ");',
+                "        String name = sc.nextLine();",
+                '        System.out.println("Hello, " + name + "!");',
+                "        sc.close();",
+                "    }",
+                "}"
+            ],
+            vars: [
+                "public class Main {",
+                "    public static void main(String[] args) {",
+                "        int age = 21;",
+                "        double height = 1.75;",
+                "        char grade = 'A';",
+                '        String name = "Lexify";',
+                "        boolean student = true;",
+                '        System.out.println(name + " is " + age + " years old");',
+                '        System.out.println("Height: " + height);',
+                '        System.out.println("Grade: " + grade);',
+                "    }",
+                "}"
+            ],
+            loops: [
+                "public class Main {",
+                "    public static void main(String[] args) {",
+                "        for (int i = 1; i <= 5; i++) {",
+                "            if (i % 2 == 0) {",
+                '                System.out.println(i + " is even");',
+                "            } else {",
+                '                System.out.println(i + " is odd");',
+                "            }",
+                "        }",
+                "    }",
+                "}"
+            ],
+            classes: [
+                "class Car {",
+                "    String name;",
+                "",
+                "    void drive() {",
+                '        System.out.println(name + " is driving");',
+                "    }",
+                "}",
+                "",
+                "public class Main {",
+                "    public static void main(String[] args) {",
+                "        Car car = new Car();",
+                '        car.name = "Tesla";',
+                "        car.drive();",
+                "    }",
+                "}"
+            ]
+        };
+
+        function loadCode(text) {
+            codeBox.value = text;
+            codeBox.scrollTop = codeBox.scrollLeft = 0;
+            refreshEditor();
+        }
+
+        // ---------- Tab / toolbar buttons ----------
+        function newFile(name) {
+            fileInput.value = name;
+            loadCode("");
+            outputBox.value = "";
+            outputBox.classList.remove("error");
+            codeBox.focus();
+        }
+
+        document.getElementById("closeTab").addEventListener("click", () => newFile("Main.java"));
+
+        document.getElementById("clearBtn").addEventListener("click", () => {
+            loadCode("");
+            outputBox.value = "";
+            outputBox.classList.remove("error");
+            codeBox.focus();
+        });
+
+        document.getElementById("expandBtn").addEventListener("click", () => {
+            editor.classList.toggle("expanded");
+        });
+
+        // ---------- Run ----------
+        // DEMO ONLY: this fakes output by echoing the string literals found in
+        // System.out.println(...) / System.out.print(...) calls.
+        // Replace the body of this click handler with a call to your real compile/run API
+        // and put the response text into outputBox.value.
+        document.getElementById("run").addEventListener("click", () => {
+            const code = codeBox.value;
+            outputBox.classList.remove("error");
+
+            if (!code.trim()) {
+                outputBox.classList.add("error");
+                outputBox.value = "Nothing to run. Write some code first.";
+                return;
+            }
+
+            if (!/\bmain\s*\(/.test(code)) {
+                outputBox.classList.add("error");
+                outputBox.value = "error: no main method found\nProcess exited with code 1";
+                return;
+            }
+
+            let text = "";
+            const re = /System\.out\.(println|print)\s*\(([\s\S]*?)\)\s*;/g;
+            let m;
+            while ((m = re.exec(code)) !== null) {
+                m[2].split(/\+(?=(?:[^"]*"[^"]*")*[^"]*$)/).forEach(part => {
+                    const lit = part.trim().match(/^"((?:\\.|[^"\\])*)"$/);
+                    if (lit) text += lit[1].replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+                });
+                if (m[1] === "println") text += "\n";
+            }
+
+            outputBox.value = text + "Process exited with code 0";
+        });
+
+        // ---------- Copy output ----------
+        document.getElementById("copyBtn").addEventListener("click", async e => {
+            const btn = e.currentTarget;
+            try {
+                await navigator.clipboard.writeText(outputBox.value);
+                btn.firstElementChild.firstElementChild.setAttribute("href", "#i-check");
+                setTimeout(() => btn.firstElementChild.firstElementChild.setAttribute("href", "#i-copy"), 1200);
+            } catch (err) {
+                outputBox.select();
+            }
+        });
+
+        // ---------- Start with the Hello World example ----------
+        loadCode(EXAMPLES.hello.join("\n"));
+        outputBox.value = "Hello, Java!\nProcess exited with code 0";
+    </script>
+</body>
+</html>

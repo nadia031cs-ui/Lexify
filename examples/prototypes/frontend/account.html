@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Lexify - My Account</title>
+
+    <style>
+        /* ============ General ============ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --blue: #2563EB;
+            --blue-light: #4F8CFF;
+            --red: #E5383B;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: #F5F7FA;
+            color: #1E293B;
+            line-height: 1.6;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* ============ Header ============ */
+        header {
+            width: 100%;
+            min-height: 85px;
+            background-color: #FFFFFF;
+            display: flex;
+            align-items: center;
+            padding: 10px 8%;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+            transition: background-color 0.3s ease;
+        }
+
+        .Logo img { width: 100px; height: auto; display: block; }
+
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 35px;
+            margin-left: auto;
+            margin-right: 35px;
+        }
+
+        nav a {
+            position: relative;
+            text-decoration: none;
+            color: #334155;
+            font-size: 16px;
+            font-weight: 500;
+            padding: 6px 0;
+            transition: color 0.3s ease;
+        }
+
+        nav a::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 0;
+            height: 2px;
+            background-color: var(--blue-light);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        nav a:hover, nav a.active { color: var(--blue-light); }
+        nav a:hover::after, nav a.active::after { width: 100%; }
+
+        /* ============ Theme Toggle ============ */
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 5px 10px;
+            background-color: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: border-color 0.3s ease, background-color 0.3s ease;
+        }
+
+        .theme-toggle:hover { border-color: var(--blue-light); }
+        .theme-toggle:focus-visible { outline: 2px solid var(--blue-light); outline-offset: 3px; }
+
+        .theme-toggle svg {
+            width: 14px; height: 14px;
+            fill: none; stroke: currentColor; stroke-width: 2;
+            stroke-linecap: round; stroke-linejoin: round;
+            transition: color 0.3s ease, opacity 0.3s ease;
+        }
+
+        .theme-toggle .icon-sun { color: #F59E0B; opacity: 1; }
+        .theme-toggle .icon-moon { color: #64748B; opacity: 0.55; }
+
+        .theme-toggle .track {
+            position: relative;
+            width: 34px; height: 18px;
+            background-color: var(--blue-light);
+            border-radius: 999px;
+            transition: background-color 0.3s ease;
+        }
+
+        .theme-toggle .knob {
+            position: absolute;
+            top: 3px; left: 3px;
+            width: 12px; height: 12px;
+            background-color: #FFFFFF;
+            border-radius: 50%;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+            transition: transform 0.3s ease;
+        }
+
+        /* ============ Account Layout ============ */
+        main {
+            flex: 1;
+            padding: 50px 8%;
+            background: linear-gradient(135deg, #EFF6FF, #FFFFFF);
+            transition: background 0.3s ease;
+        }
+
+        .page-title { max-width: 1050px; margin: 0 auto 28px; }
+        .page-title h1 { font-size: 32px; color: #0F172A; }
+        .page-title p { color: #64748B; font-size: 15px; }
+
+        .account-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 25px;
+            max-width: 1050px;
+            margin: 0 auto;
+            align-items: start;
+        }
+
+        .card {
+            background-color: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 14px;
+            padding: 28px;
+            box-shadow: 0 8px 24px rgba(79, 140, 255, 0.08);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        /* Profile summary */
+        .profile { text-align: center; }
+
+        .avatar {
+            width: 88px; height: 88px;
+            margin: 0 auto 16px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3B82F6, #1D4ED8);
+            color: #FFFFFF;
+            font-size: 32px; font-weight: bold;
+            box-shadow: 0 6px 14px rgba(37, 99, 235, 0.3);
+        }
+
+        .profile h2 { font-size: 20px; color: #0F172A; }
+        .profile .email { color: #64748B; font-size: 14px; word-break: break-all; }
+
+        .badge {
+            display: inline-block;
+            margin-top: 12px;
+            background-color: #DBEAFE;
+            color: var(--blue);
+            padding: 5px 14px;
+            border-radius: 30px;
+            font-size: 13px; font-weight: bold;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin: 22px 0;
+            padding: 16px 0;
+            border-top: 1px solid #E2E8F0;
+            border-bottom: 1px solid #E2E8F0;
+        }
+
+        .stats strong { display: block; font-size: 20px; color: var(--blue); }
+        .stats span { font-size: 12px; color: #64748B; }
+
+        /* Forms */
+        .section + .section { margin-top: 25px; }
+        .card h3 { font-size: 20px; color: #0F172A; margin-bottom: 4px; }
+        .card .sub { color: #64748B; font-size: 14px; margin-bottom: 20px; }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .field { margin-bottom: 16px; }
+
+        label {
+            display: block;
+            font-size: 14px; font-weight: bold;
+            color: #334155;
+            margin-bottom: 6px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 11px 14px;
+            font-size: 15px;
+            font-family: inherit;
+            color: #1E293B;
+            background-color: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 10px;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--blue-light);
+            box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.2);
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 11px 24px;
+            border-radius: 10px;
+            font-size: 15px; font-weight: bold;
+            font-family: inherit;
+            text-decoration: none;
+            text-align: center;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: transform 0.2s ease, background-color 0.2s ease;
+        }
+
+        .btn:hover { transform: translateY(-2px); }
+
+        .btn-primary {
+            background-color: var(--blue);
+            color: #FFFFFF;
+            box-shadow: 0 6px 14px rgba(37, 99, 235, 0.25);
+        }
+        .btn-primary:hover { background-color: #1D4ED8; }
+
+        .btn-logout {
+            display: block;
+            width: 100%;
+            background-color: transparent;
+            color: var(--red);
+            border-color: #FECACA;
+        }
+        .btn-logout:hover { background-color: #FFF1F2; }
+
+        .msg { margin-top: 12px; font-size: 14px; min-height: 20px; }
+        .msg.ok { color: #16A34A; }
+        .msg.err { color: var(--red); }
+
+        /* ============ Footer ============ */
+        footer {
+            background-color: #0F172A;
+            color: #FFFFFF;
+            text-align: center;
+            padding: 25px 15px;
+            font-size: 16px;
+            letter-spacing: 2px;
+        }
+
+        /* ============ Dark Mode ============ */
+        body.dark-mode { background-color: #0F172A; color: #F8FAFC; }
+        .dark-mode header { background-color: #1E293B; }
+        .dark-mode nav a { color: #E2E8F0; }
+        .dark-mode nav a:hover, .dark-mode nav a.active { color: #60A5FA; }
+
+        .dark-mode .theme-toggle { background-color: #0F172A; border-color: #334155; }
+        .dark-mode .theme-toggle .icon-sun { color: #94A3B8; opacity: 0.55; }
+        .dark-mode .theme-toggle .icon-moon { color: #FACC15; opacity: 1; }
+        .dark-mode .theme-toggle .track { background-color: #475569; }
+        .dark-mode .theme-toggle .knob { transform: translateX(16px); }
+
+        .dark-mode main { background: linear-gradient(135deg, #172554, #0F172A); }
+        .dark-mode .page-title h1,
+        .dark-mode .profile h2,
+        .dark-mode .card h3 { color: #F8FAFC; }
+        .dark-mode .page-title p,
+        .dark-mode .profile .email,
+        .dark-mode .card .sub,
+        .dark-mode .stats span { color: #CBD5E1; }
+
+        .dark-mode .card { background-color: #1E293B; border-color: #334155; box-shadow: none; }
+        .dark-mode .badge { background-color: #1E3A8A; color: #BFDBFE; }
+        .dark-mode .stats { border-color: #334155; }
+        .dark-mode .stats strong { color: #93C5FD; }
+        .dark-mode label { color: #E2E8F0; }
+        .dark-mode input, .dark-mode select {
+            background-color: #0F172A;
+            border-color: #334155;
+            color: #F8FAFC;
+        }
+        .dark-mode .btn-logout { border-color: #7F1D1D; }
+        .dark-mode .btn-logout:hover { background-color: #2A1215; }
+        .dark-mode footer { background-color: #020617; }
+
+        /* ============ Responsive ============ */
+        @media (max-width: 900px) {
+            header { padding: 15px 5%; }
+            nav { gap: 22px; margin-right: 20px; }
+            main { padding: 40px 5%; }
+            .account-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 600px) {
+            header { flex-wrap: wrap; gap: 15px; }
+            .Logo { margin-right: auto; }
+            .Logo img { width: 85px; }
+            nav { order: 3; width: 100%; margin: 0; justify-content: flex-end; gap: 20px; flex-wrap: wrap; }
+            nav a { font-size: 14px; }
+            .page-title h1 { font-size: 26px; }
+            .form-row { grid-template-columns: 1fr; gap: 0; }
+            .card { padding: 22px 18px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { transition: none !important; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header -->
+    <header>
+
+        <div class="Logo">
+            <img src="./final.png" alt="Lexify Logo">
+        </div>
+
+        <nav>
+            <a href="index.html">Home</a>
+            <a href="Contactus.html">Contact Us</a>
+            <a href="account.html" class="active">Account</a>
+            <a href="logout.html">Logout</a>
+        </nav>
+
+        <!-- Theme toggle: sun - switch - moon -->
+        <button id="Toggle" class="theme-toggle" type="button" role="switch" aria-checked="false" aria-label="Toggle dark mode">
+            <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="4"></circle>
+                <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+            </svg>
+            <span class="track"><span class="knob"></span></span>
+            <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+            </svg>
+        </button>
+
+    </header>
+
+    <!-- Account -->
+    <main>
+
+        <div class="page-title">
+            <h1>My Account</h1>
+            <p>Manage your profile, preferences and password.</p>
+        </div>
+
+        <div class="account-grid">
+
+            <!-- Left: profile summary -->
+            <aside class="card profile">
+                <div class="avatar" id="avatar">U</div>
+                <h2 id="showName">Guest User</h2>
+                <p class="email" id="showEmail">guest@lexify.com</p>
+                <span class="badge">Student</span>
+
+                <div class="stats">
+                    <div><strong id="statRuns">0</strong><span>Runs</span></div>
+                    <div><strong id="statFiles">0</strong><span>Files</span></div>
+                    <div><strong id="statLang">C</strong><span>Favorite</span></div>
+                </div>
+
+                <a class="btn btn-logout" href="logout.html">Log out</a>
+            </aside>
+
+            <!-- Right: forms -->
+            <div>
+
+                <!-- Profile -->
+                <section class="card section">
+                    <h3>Profile Information</h3>
+                    <p class="sub">Update your name, email and default language.</p>
+
+                    <form id="profileForm" novalidate>
+                        <div class="form-row">
+                            <div class="field">
+                                <label for="name">Full Name</label>
+                                <input type="text" id="name" placeholder="Your name" autocomplete="name">
+                            </div>
+                            <div class="field">
+                                <label for="email">Email</label>
+                                <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label for="lang">Default Language</label>
+                            <select id="lang">
+                                <option value="C">C</option>
+                                <option value="C++">C++</option>
+                                <option value="Java">Java</option>
+                            </select>
+                        </div>
+
+                        <button class="btn btn-primary" type="submit">Save Changes</button>
+                        <p class="msg" id="profileMsg" role="status"></p>
+                    </form>
+                </section>
+
+                <!-- Password -->
+                <section class="card section">
+                    <h3>Change Password</h3>
+                    <p class="sub">Use at least 8 characters.</p>
+
+                    <form id="passForm" novalidate>
+                        <div class="field">
+                            <label for="oldPass">Current Password</label>
+                            <input type="password" id="oldPass" autocomplete="current-password">
+                        </div>
+
+                        <div class="form-row">
+                            <div class="field">
+                                <label for="newPass">New Password</label>
+                                <input type="password" id="newPass" autocomplete="new-password">
+                            </div>
+                            <div class="field">
+                                <label for="confirmPass">Confirm Password</label>
+                                <input type="password" id="confirmPass" autocomplete="new-password">
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary" type="submit">Update Password</button>
+                        <p class="msg" id="passMsg" role="status"></p>
+                    </form>
+                </section>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <b>Build . Learn . Grow</b>
+    </footer>
+
+    <script src="js/api.js"></script>
+    <script>
+        /* ---------- Dark mode (same as index.html) ---------- */
+        const toggleButton = document.getElementById("Toggle");
+
+        function setTheme(isDark) {
+            document.body.classList.toggle("dark-mode", isDark);
+            toggleButton.setAttribute("aria-checked", isDark ? "true" : "false");
+        }
+
+        try { setTheme(localStorage.getItem("theme") === "dark"); } catch (e) { }
+
+        toggleButton.addEventListener("click", function () {
+            const isDark = !document.body.classList.contains("dark-mode");
+            setTheme(isDark);
+            try { localStorage.setItem("theme", isDark ? "dark" : "light"); } catch (e) { }
+        });
+
+        /* ---------- Load user ---------- */
+        // Redirects to login.html if nobody is logged in.
+        Lexify.requireLogin();
+
+        const nameInput = document.getElementById("name");
+        const emailInput = document.getElementById("email");
+        const langInput = document.getElementById("lang");
+
+        function render(user) {
+            const name = (user && user.name) || "Guest User";
+            const email = (user && user.email) || "guest@lexify.com";
+            const lang = (user && user.lang) || "C";
+
+            document.getElementById("showName").textContent = name;
+            document.getElementById("showEmail").textContent = email;
+            document.getElementById("avatar").textContent = name.trim().charAt(0).toUpperCase() || "U";
+            document.getElementById("statLang").textContent = lang;
+            document.getElementById("statRuns").textContent = (user && user.runs) || 0;
+            document.getElementById("statFiles").textContent = (user && user.files) || 0;
+
+            nameInput.value = user && user.name ? user.name : "";
+            emailInput.value = user && user.email ? user.email : "";
+            langInput.value = lang;
+        }
+
+        // Show the cached user instantly, then refresh from the server.
+        render(Lexify.getUser());
+        Lexify.me().then(render).catch(function () { });
+
+        /* ---------- Save profile ---------- */
+        const profileMsg = document.getElementById("profileMsg");
+
+        function showMsg(el, text, ok) {
+            el.textContent = text;
+            el.className = "msg " + (ok ? "ok" : "err");
+        }
+
+        document.getElementById("profileForm").addEventListener("submit", function (e) {
+            e.preventDefault();
+
+            const name = nameInput.value.trim();
+            const email = emailInput.value.trim();
+
+            if (!name) { showMsg(profileMsg, "Please enter your name.", false); return; }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                showMsg(profileMsg, "Please enter a valid email address.", false);
+                return;
+            }
+
+            const btn = this.querySelector("button[type=submit]");
+            btn.disabled = true;
+
+            Lexify.updateProfile({ name: name, email: email, lang: langInput.value }).then(function (user) {
+                render(user);
+                showMsg(profileMsg, "Profile updated successfully.", true);
+            }).catch(function (err) {
+                const errs = err.errors || {};
+                showMsg(profileMsg, errs.email || errs.name || err.message || "Could not update profile.", false);
+            }).then(function () { btn.disabled = false; });
+        });
+
+        /* ---------- Change password ---------- */
+        const passMsg = document.getElementById("passMsg");
+
+        document.getElementById("passForm").addEventListener("submit", function (e) {
+            e.preventDefault();
+
+            const oldPass = document.getElementById("oldPass").value;
+            const newPass = document.getElementById("newPass").value;
+            const confirmPass = document.getElementById("confirmPass").value;
+
+            if (!oldPass) { showMsg(passMsg, "Enter your current password.", false); return; }
+            if (newPass.length < 8) { showMsg(passMsg, "New password must be at least 8 characters.", false); return; }
+            if (newPass !== confirmPass) { showMsg(passMsg, "Passwords do not match.", false); return; }
+            if (newPass === oldPass) { showMsg(passMsg, "New password must be different.", false); return; }
+
+            const form = this;
+            const btn = form.querySelector("button[type=submit]");
+            btn.disabled = true;
+
+            Lexify.changePassword(oldPass, newPass).then(function () {
+                form.reset();
+                showMsg(passMsg, "Password updated successfully.", true);
+            }).catch(function (err) {
+                showMsg(passMsg, err.message || "Could not update password.", false);
+            }).then(function () { btn.disabled = false; });
+        });
+    </script>
+
+</body>
+
+</html>

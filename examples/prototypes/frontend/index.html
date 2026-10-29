@@ -1,3 +1,836 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lexify</title><style>body{font-family:system-ui;background:#101827;color:#f3f4f6;max-width:760px;margin:60px auto;padding:20px}textarea{width:100%;height:240px;background:#1f2937;color:white;padding:12px;box-sizing:border-box}code{color:#93c5fd}</style></head><body><h1>Lexify</h1><p>A tiny educational compiler for C-like expressions.</p><textarea readonly>int a = 10;
-int b = 5;
-print(a + b * 2);</textarea><p>Run the compiler locally from <code>C_Compiler/</code>. Web execution is not connected yet.</p></body></html>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Lexify - Online Compiler</title>
+
+    <style>
+        /* ============ General ============ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --blue: #2563EB;
+            --blue-light: #4F8CFF;
+            --red: #E5383B;
+            --orange: #F97316;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: #F5F7FA;
+            color: #1E293B;
+            line-height: 1.6;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* ============ Header ============ */
+        header {
+            width: 100%;
+            min-height: 85px;
+            background-color: #FFFFFF;
+            display: flex;
+            align-items: center;
+            padding: 10px 8%;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+            transition: background-color 0.3s ease;
+        }
+
+        .Logo img {
+            width: 100px;
+            height: auto;
+            display: block;
+        }
+
+        /* Navigation (pushed to the right) */
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 35px;
+            margin-left: auto;          /* logo left, nav + toggle right */
+            margin-right: 35px;
+        }
+
+        nav a {
+            position: relative;
+            text-decoration: none;
+            color: #334155;
+            font-size: 16px;
+            font-weight: 500;
+            padding: 6px 0;
+            transition: color 0.3s ease;
+        }
+
+        nav a::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 0;
+            height: 2px;
+            background-color: var(--blue-light);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        nav a:hover {
+            color: var(--blue-light);
+        }
+
+        nav a:hover::after {
+            width: 100%;
+        }
+
+        /* ============ Theme Toggle (sun - switch - moon) ============ */
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 5px 10px;
+            background-color: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: border-color 0.3s ease, background-color 0.3s ease;
+        }
+
+        .theme-toggle:hover {
+            border-color: var(--blue-light);
+        }
+
+        .theme-toggle:focus-visible {
+            outline: 2px solid var(--blue-light);
+            outline-offset: 3px;
+        }
+
+        .theme-toggle svg {
+            width: 14px;
+            height: 14px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transition: color 0.3s ease, opacity 0.3s ease;
+        }
+
+        .theme-toggle .icon-sun {
+            color: #F59E0B;
+            opacity: 1;
+        }
+
+        .theme-toggle .icon-moon {
+            color: #64748B;
+            opacity: 0.55;
+        }
+
+        .theme-toggle .track {
+            position: relative;
+            width: 34px;
+            height: 18px;
+            background-color: var(--blue-light);
+            border-radius: 999px;
+            transition: background-color 0.3s ease;
+        }
+
+        .theme-toggle .knob {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 12px;
+            height: 12px;
+            background-color: #FFFFFF;
+            border-radius: 50%;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+            transition: transform 0.3s ease;
+        }
+
+        /* ============ Hero ============ */
+        #about {
+            min-height: 430px;
+            padding: 60px 7%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 30px;
+            text-align: left;
+            background: linear-gradient(135deg, #EFF6FF, #FFFFFF);
+        }
+
+        .hero-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        #about span {
+            display: inline-block;
+            background-color: #DBEAFE;
+            color: var(--blue);
+            padding: 7px 18px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 22px;
+        }
+
+        #about h1 {
+            max-width: 600px;
+            margin: 0 0 20px;
+            font-size: 40px;
+            line-height: 1.2;
+            color: #0F172A;
+        }
+
+        #about p {
+            max-width: 520px;
+            margin: 0;
+            color: #64748B;
+            font-size: 16px;
+            line-height: 1.8;
+        }
+
+        .hero-image {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-width: 0;
+        }
+
+        .hero-image img {
+            display: block;
+            width: 100%;
+            max-width: 400px;
+            height: auto;
+            object-fit: contain;
+        }
+
+        /* ============ Features ============ */
+        #features {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 22px;
+            padding: 45px 8%;
+            background-color: #FFFFFF;
+            transition: background-color 0.3s ease;
+        }
+
+        #features div {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background-color: #F8FAFC;
+            padding: 20px 18px;
+            text-align: left;
+            border: 1px solid #E2E8F0;
+            border-radius: 12px;
+            transition: 0.3s ease;
+        }
+
+        #features div:hover {
+            transform: translateY(-6px);
+            border-color: var(--blue-light);
+            box-shadow: 0 8px 25px rgba(79, 140, 255, 0.12);
+        }
+
+        #features h3 {
+            font-size: 16px;
+            line-height: 1.3;
+            color: #1E293B;
+        }
+
+        #features p {
+            font-size: 13px;
+            line-height: 1.4;
+            color: #64748B;
+        }
+
+        /* Feature icon circle (icon is drawn with a CSS mask) */
+        #features div::before {
+            content: "";
+            flex: 0 0 48px;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background-color: #DBEAFE;
+            background-image: none;
+            -webkit-mask: none;
+            mask: none;
+        }
+
+        /* Icon glyph sits on top of the circle */
+        #features div {
+            position: relative;
+        }
+
+        #features div::after {
+            content: "";
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            width: 48px;
+            height: 48px;
+            transform: translateY(-50%);
+            background-color: var(--blue);
+            -webkit-mask-repeat: no-repeat;
+            mask-repeat: no-repeat;
+            -webkit-mask-position: center;
+            mask-position: center;
+            -webkit-mask-size: 22px 22px;
+            mask-size: 22px 22px;
+        }
+
+        /* 1) Fast & Easy - lightning */
+        #features div:nth-child(1)::after {
+            -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M13 2L4 14h7l-1 8 9-12h-7z'/></svg>");
+            mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M13 2L4 14h7l-1 8 9-12h-7z'/></svg>");
+        }
+
+        /* 2) No Installation - cloud */
+        #features div:nth-child(2)::after {
+            -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M7 19a5 5 0 0 1-.6-9.96A6 6 0 0 1 18 8.5 5.25 5.25 0 0 1 17.5 19z'/></svg>");
+            mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M7 19a5 5 0 0 1-.6-9.96A6 6 0 0 1 18 8.5 5.25 5.25 0 0 1 17.5 19z'/></svg>");
+        }
+
+        /* 3) Multiple Languages - code </> */
+        #features div:nth-child(3)::after {
+            -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16'/></svg>");
+            mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16'/></svg>");
+        }
+
+        /* 4) Accessible Anywhere - shield */
+        #features div:nth-child(4)::after {
+            -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z'/></svg>");
+            mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z'/></svg>");
+        }
+
+        /* ============ Choose Your Language ============ */
+        #Language {
+            padding: 80px 8%;
+            text-align: center;
+            background-color: #F5F7FA;
+            transition: background-color 0.3s ease;
+        }
+
+        #Language h1 {
+            font-size: 34px;
+            color: #0F172A;
+            margin-bottom: 10px;
+        }
+
+        #Language > p {
+            color: #64748B;
+            font-size: 16px;
+            margin-bottom: 40px;
+        }
+
+        .language-container {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 25px;
+            max-width: 1050px;
+            margin: 0 auto;
+        }
+
+        /* Card layout: [icon] [name + text] [arrow] */
+        .language-card {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            grid-template-rows: auto auto;
+            column-gap: 18px;
+            align-items: center;
+            text-align: left;
+            padding: 22px 22px;
+            background-color: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 12px;
+            transition: 0.3s ease;
+        }
+
+        .language-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 10px 25px rgba(79, 140, 255, 0.15);
+        }
+
+        /* Language icon badge (letters inside a colored badge) */
+        .language-card::before {
+            grid-column: 1;
+            grid-row: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 62px;
+            height: 62px;
+            border-radius: 16px;
+            color: #FFFFFF;
+            font-weight: bold;
+            font-size: 22px;
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Arrow circle on the right */
+        .language-card::after {
+            content: "\2192";
+            grid-column: 3;
+            grid-row: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background-color: #FFFFFF;
+            border: 1px solid currentColor;
+            font-size: 16px;
+            transition: transform 0.3s ease;
+        }
+
+        .language-card:hover::after {
+            transform: translateX(4px);
+        }
+
+        .language-card a {
+            grid-column: 2;
+            grid-row: 1;
+            display: block;
+            padding: 0;
+            font-size: 22px;
+            font-weight: bold;
+            text-decoration: none;
+            color: #0F172A;
+            transition: color 0.3s ease;
+        }
+
+        /* Make the whole card clickable */
+        .language-card a::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+        }
+
+        .language-card {
+            position: relative;
+        }
+
+        .language-card p {
+            grid-column: 2;
+            grid-row: 2;
+            padding: 0;
+            color: #64748B;
+            font-size: 14px;
+        }
+
+        /* C - blue */
+        .language-card:nth-child(1) {
+            color: var(--blue);
+            background: linear-gradient(135deg, #EFF6FF, #FFFFFF);
+            border-color: #BFDBFE;
+        }
+
+        .language-card:nth-child(1)::before {
+            content: "C";
+            background: linear-gradient(135deg, #3B82F6, #1D4ED8);
+        }
+
+        /* C++ - red */
+        .language-card:nth-child(2) {
+            color: var(--red);
+            background: linear-gradient(135deg, #FFF1F2, #FFFFFF);
+            border-color: #FECACA;
+        }
+
+        .language-card:nth-child(2)::before {
+            content: "C++";
+            background: linear-gradient(135deg, #F87171, #DC2626);
+        }
+
+        /* Java - orange */
+        .language-card:nth-child(3) {
+            color: var(--orange);
+            background: linear-gradient(135deg, #FFF7ED, #FFFFFF);
+            border-color: #FED7AA;
+        }
+
+        .language-card:nth-child(3)::before {
+            content: "Java";
+            font-size: 16px;
+            background: linear-gradient(135deg, #FB923C, #EA580C);
+        }
+
+        /* ============ Footer ============ */
+        footer {
+            background-color: #0F172A;
+            color: #FFFFFF;
+            text-align: center;
+            padding: 25px 15px;
+            font-size: 16px;
+            letter-spacing: 2px;
+        }
+
+        /* ============ Dark Mode ============ */
+        body.dark-mode {
+            background-color: #0F172A;
+            color: #F8FAFC;
+        }
+
+        .dark-mode header,
+        .dark-mode #features {
+            background-color: #1E293B;
+        }
+
+        .dark-mode nav a {
+            color: #E2E8F0;
+        }
+
+        .dark-mode nav a:hover {
+            color: #60A5FA;
+        }
+
+        /* Toggle in dark mode */
+        .dark-mode .theme-toggle {
+            background-color: #0F172A;
+            border-color: #334155;
+        }
+
+        .dark-mode .theme-toggle .icon-sun {
+            color: #94A3B8;
+            opacity: 0.55;
+        }
+
+        .dark-mode .theme-toggle .icon-moon {
+            color: #FACC15;
+            opacity: 1;
+        }
+
+        .dark-mode .theme-toggle .track {
+            background-color: #475569;
+        }
+
+        .dark-mode .theme-toggle .knob {
+            transform: translateX(16px);
+        }
+
+        .dark-mode #about {
+            background: linear-gradient(135deg, #172554, #0F172A);
+        }
+
+        .dark-mode #about span {
+            background-color: #1E3A8A;
+            color: #BFDBFE;
+        }
+
+        .dark-mode #about h1,
+        .dark-mode #Language h1 {
+            color: #F8FAFC;
+        }
+
+        .dark-mode #about p,
+        .dark-mode #Language > p {
+            color: #CBD5E1;
+        }
+
+        .dark-mode #features div {
+            background-color: #0F172A;
+            border-color: #334155;
+        }
+
+        .dark-mode #features div::before {
+            background-color: #1E3A8A;
+        }
+
+        .dark-mode #features div::after {
+            background-color: #93C5FD;
+        }
+
+        .dark-mode #features h3 {
+            color: #F8FAFC;
+        }
+
+        .dark-mode #features p {
+            color: #94A3B8;
+        }
+
+        .dark-mode #Language {
+            background-color: #0F172A;
+        }
+
+        .dark-mode .language-card {
+            background: #1E293B;
+            border-color: #334155;
+        }
+
+        .dark-mode .language-card::after {
+            background-color: #1E293B;
+        }
+
+        .dark-mode .language-card a {
+            color: #F8FAFC;
+        }
+
+        .dark-mode .language-card p {
+            color: #CBD5E1;
+        }
+
+        .dark-mode footer {
+            background-color: #020617;
+        }
+
+        /* ============ Tablet ============ */
+        @media (max-width: 900px) {
+            header {
+                padding: 15px 5%;
+            }
+
+            nav {
+                gap: 22px;
+                margin-right: 20px;
+            }
+
+            #features {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            #about h1 {
+                font-size: 34px;
+            }
+
+            .hero-image img {
+                max-width: 340px;
+            }
+
+            .language-container {
+                grid-template-columns: 1fr;
+                max-width: 520px;
+                gap: 18px;
+            }
+        }
+
+        /* ============ Mobile ============ */
+        @media (max-width: 600px) {
+            header {
+                flex-wrap: wrap;
+                gap: 15px;
+            }
+
+            .Logo {
+                margin-right: auto;
+            }
+
+            .Logo img {
+                width: 85px;
+            }
+
+            nav {
+                order: 3;
+                width: 100%;
+                margin: 0;
+                justify-content: flex-end;
+                gap: 20px;
+                flex-wrap: wrap;
+            }
+
+            nav a {
+                font-size: 14px;
+            }
+
+            #about {
+                flex-direction: column;
+                text-align: center;
+                padding: 45px 20px;
+            }
+
+            .hero-content {
+                width: 100%;
+            }
+
+            #about h1 {
+                font-size: 30px;
+            }
+
+            #about p {
+                font-size: 15px;
+            }
+
+            .hero-image {
+                width: 100%;
+            }
+
+            .hero-image img {
+                max-width: 300px;
+            }
+
+            #features {
+                grid-template-columns: 1fr;
+                padding: 35px 6%;
+            }
+
+            #Language {
+                padding: 55px 6%;
+            }
+
+            #Language h1 {
+                font-size: 28px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                transition: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header -->
+    <header>
+
+        <div class="Logo">
+            <img src="./final.png" alt="Lexify Logo">
+        </div>
+
+        <nav>
+            <a href="index.html">Home</a>
+            <a href="Contactus.html">Contact Us</a>
+            <a href="login.html">Login</a>
+        </nav>
+
+        <!-- Theme toggle: sun - switch - moon -->
+        <button id="Toggle" class="theme-toggle" type="button" role="switch" aria-checked="false" aria-label="Toggle dark mode">
+            <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="4"></circle>
+                <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+            </svg>
+            <span class="track"><span class="knob"></span></span>
+            <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+            </svg>
+        </button>
+
+    </header>
+
+    <!-- Hero Section -->
+    <section id="about">
+
+        <div class="hero-content">
+
+            <span>Online Compiler</span>
+
+            <h1>Code in C, C++ and Java - All in One Place</h1>
+
+            <p>
+                A simple, fast and reliable online compiler for writing,
+                compiling and running your code. Start coding instantly
+                and bring your ideas to life - no installation required.
+            </p>
+
+        </div>
+
+        <div class="hero-image">
+            <img src="./p1.png" alt="Online Compiler PC Illustration">
+        </div>
+
+    </section>
+
+    <!-- Features Section -->
+    <section id="features">
+
+        <div>
+            <article>
+                <h3>Fast & Easy</h3>
+                <p>Compile and run in seconds.</p>
+            </article>
+        </div>
+
+        <div>
+            <article>
+                <h3>No Installation</h3>
+                <p>Works directly in your browser.</p>
+            </article>
+        </div>
+
+        <div>
+            <article>
+                <h3>Multiple Languages</h3>
+                <p>C, C++ and Java supported.</p>
+            </article>
+        </div>
+
+        <div>
+            <article>
+                <h3>Accessible Anywhere</h3>
+                <p>Code from any device, anytime.</p>
+            </article>
+        </div>
+
+    </section>
+
+    <!-- Choose Your Language Section -->
+    <section id="Language">
+
+        <h1>Choose Your Language</h1>
+
+        <p>Select a language to start coding.</p>
+
+        <div class="language-container">
+
+            <div class="language-card">
+                <a href="c.html">C</a>
+                <p>Simple. Powerful. Widely used.</p>
+            </div>
+
+            <div class="language-card">
+                <a href="cpp.html">C++</a>
+                <p>Powerful. Fast. Reliable.</p>
+            </div>
+
+            <div class="language-card">
+                <a href="java.html">Java</a>
+                <p>Write. Compile. Run. Anywhere.</p>
+            </div>
+
+        </div>
+
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <b>Build . Learn . Grow</b>
+    </footer>
+
+    <script src="js/api.js"></script>
+
+    <!-- Dark Mode JavaScript -->
+    <script>
+        const toggleButton = document.getElementById("Toggle");
+
+        function setTheme(isDark) {
+            document.body.classList.toggle("dark-mode", isDark);
+            toggleButton.setAttribute("aria-checked", isDark ? "true" : "false");
+        }
+
+        // Restore saved theme (safe if storage is unavailable)
+        try {
+            setTheme(localStorage.getItem("theme") === "dark");
+        } catch (e) { }
+
+        toggleButton.addEventListener("click", function () {
+            const isDark = !document.body.classList.contains("dark-mode");
+            setTheme(isDark);
+            try {
+                localStorage.setItem("theme", isDark ? "dark" : "light");
+            } catch (e) { }
+        });
+        
+    </script>
+
+
+</body>
+</html>
