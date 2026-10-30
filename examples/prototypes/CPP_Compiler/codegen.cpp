@@ -1,4 +1,0 @@
-#include "codegen.h"
-#include <sstream>
-static std::string exprTAC(const Expr* e,std::ostringstream& out,int& count){if(!e)return "0";if(e->kind=="number"||e->kind=="identifier")return e->text;auto a=exprTAC(e->left.get(),out,count);std::string b=e->right?exprTAC(e->right.get(),out,count):"";std::string temp="t"+std::to_string(++count);out<<temp<<" = "<<(e->kind=="unary"?"-"+a:a+" "+e->text+" "+b)<<'\n';return temp;}
-std::string generateTAC(const Program& p){std::ostringstream out;int count=0;for(auto& s:p.statements){std::string v=exprTAC(s.expression.get(),out,count);if(s.kind=="declare")out<<"declare "<<s.type<<" "<<s.name<<"\n";if((s.kind=="declare"&&s.expression)||s.kind=="assign")out<<s.name<<" = "<<v<<'\n';if(s.kind=="print")out<<"print "<<v<<'\n';if(s.kind=="return")out<<"return "<<v<<'\n';}return out.str();}

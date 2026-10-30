@@ -453,6 +453,7 @@
         <b>Build . Learn . Grow</b>
     </footer>
 
+    <script src="js/api.js"></script>
     <script>
         /* ---------- Dark mode (same as index.html) ---------- */
         const toggleButton = document.getElementById("Toggle");
@@ -471,21 +472,12 @@
         });
 
         /* ---------- Load user ---------- */
-        // Change USER_KEY to match whatever login.html saves.
-        // Expected format: {"name": "...", "email": "...", "lang": "C"}
-        const USER_KEY = "lexify_user";
+        // Redirects to login.html if nobody is logged in.
+        Lexify.requireLogin();
 
         const nameInput = document.getElementById("name");
         const emailInput = document.getElementById("email");
         const langInput = document.getElementById("lang");
-
-        function loadUser() {
-            try {
-                return JSON.parse(localStorage.getItem(USER_KEY)) || null;
-            } catch (e) {
-                return null;
-            }
-        }
 
         function render(user) {
             const name = (user && user.name) || "Guest User";
@@ -504,7 +496,9 @@
             langInput.value = lang;
         }
 
-        render(loadUser());
+        // Show the cached user instantly, then refresh from the server.
+        render(Lexify.getUser());
+        Lexify.me().then(render).catch(function () { });
 
         /* ---------- Save profile ---------- */
         const profileMsg = document.getElementById("profileMsg");
@@ -526,20 +520,19 @@
                 return;
             }
 
-            const user = Object.assign({}, loadUser(), { name: name, email: email, lang: langInput.value });
+            const btn = this.querySelector("button[type=submit]");
+            btn.disabled = true;
 
-            try {
-                localStorage.setItem(USER_KEY, JSON.stringify(user));
-            } catch (err) {
-                showMsg(profileMsg, "Could not save (storage unavailable).", false);
-                return;
-            }
-
-            render(user);
-            showMsg(profileMsg, "Profile updated successfully.", true);
+            Lexify.updateProfile({ name: name, email: email, lang: langInput.value }).then(function (user) {
+                render(user);
+                showMsg(profileMsg, "Profile updated successfully.", true);
+            }).catch(function (err) {
+                const errs = err.errors || {};
+                showMsg(profileMsg, errs.email || errs.name || err.message || "Could not update profile.", false);
+            }).then(function () { btn.disabled = false; });
         });
 
-        /* ---------- Change password (front-end validation only) ---------- */
+        /* ---------- Change password ---------- */
         const passMsg = document.getElementById("passMsg");
 
         document.getElementById("passForm").addEventListener("submit", function (e) {
@@ -554,9 +547,16 @@
             if (newPass !== confirmPass) { showMsg(passMsg, "Passwords do not match.", false); return; }
             if (newPass === oldPass) { showMsg(passMsg, "New password must be different.", false); return; }
 
-            // TODO: send to the backend when it exists. Passwords are not stored in the browser.
-            this.reset();
-            showMsg(passMsg, "Password updated successfully.", true);
+            const form = this;
+            const btn = form.querySelector("button[type=submit]");
+            btn.disabled = true;
+
+            Lexify.changePassword(oldPass, newPass).then(function () {
+                form.reset();
+                showMsg(passMsg, "Password updated successfully.", true);
+            }).catch(function (err) {
+                showMsg(passMsg, err.message || "Could not update password.", false);
+            }).then(function () { btn.disabled = false; });
         });
     </script>
 

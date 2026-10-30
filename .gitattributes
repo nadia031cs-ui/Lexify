@@ -1,0 +1,11 @@
+# One line-ending style for the whole repo: LF in the repo, no surprises on Windows/Linux.
+* text=auto eol=lf
+
+# Windows batch files need CRLF
+*.bat text eol=crlf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.exe binary
+*.class binary

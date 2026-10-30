@@ -327,6 +327,7 @@
         <b>Build . Learn . Grow</b>
     </footer>
 
+    <script src="js/api.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script>
         const toggleButton = document.getElementById("Toggle");
@@ -355,6 +356,9 @@
             cpp:  { label: "C++",  ext: "cpp",  sample: '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello, Lexify!" << endl;\n    return 0;\n}\n' },
             java: { label: "Java", ext: "java", sample: 'public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, Lexify!");\n    }\n}\n' }
         };
+        // Downloading needs a logged-in user (turn off in js/api.js: DOWNLOAD_REQUIRES_LOGIN).
+        if (Lexify.CONFIG.DOWNLOAD_REQUIRES_LOGIN) Lexify.requireLogin();
+
         let lang = "c";
         const codeEl = document.getElementById("code");
         const nameEl = document.getElementById("fileName");
@@ -435,12 +439,22 @@
                 doc.text("Page " + p + " of " + n, W / 2, H - 20, { align: "center" });
             }
             doc.save(base + ".pdf");
+            return { fileName: fileName, language: LANGS[lang].label, code: codeEl.value };
         }
 
         document.getElementById("downloadBtn").addEventListener("click", function () {
             if (!codeEl.value.trim()) { say("Write or paste some code first.", true); return; }
             if (!window.jspdf) { say("PDF library could not load. Check your internet connection and reload.", true); return; }
-            try { makePdf(); say("PDF downloaded."); } catch (err) { say("Something went wrong: " + err.message, true); }
+            if (Lexify.CONFIG.DOWNLOAD_REQUIRES_LOGIN && !Lexify.isLoggedIn()) { Lexify.requireLogin(); return; }
+
+            let info;
+            try { info = makePdf(); } catch (err) { say("Something went wrong: " + err.message, true); return; }
+            say("PDF downloaded.");
+
+            // Save a record on the server (the PDF is already on the user's computer either way).
+            if (Lexify.isLoggedIn()) {
+                Lexify.logDownload(info).catch(function () { say("PDF downloaded (could not save history).", true); });
+            }
         });
 
         codeEl.value = LANGS.c.sample;

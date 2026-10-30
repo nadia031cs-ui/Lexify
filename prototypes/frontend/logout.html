@@ -236,5 +236,25 @@
         <b>Build . Learn . Grow</b>
     </footer>
 
+    <script src="js/api.js"></script>
+    <script>
+        // End the session on the server, clear the browser copy, then go to login.
+        (function () {
+            const note = document.querySelector(".redirect");
+            let left = 5;
+
+            Lexify.logout().then(function () {
+                const timer = setInterval(function () {
+                    left--;
+                    note.textContent = "Redirecting to the login page in " + left + "s...";
+                    if (left <= 0) {
+                        clearInterval(timer);
+                        window.location.href = "login.html";
+                    }
+                }, 1000);
+            });
+        })();
+    </script>
+
 </body>
 </html>

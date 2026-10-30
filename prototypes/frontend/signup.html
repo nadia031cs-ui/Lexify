@@ -260,6 +260,17 @@
             border-radius: 8px;
         }
 
+        .fail-msg {
+            display: none;
+            margin-top: 16px;
+            padding: 12px;
+            text-align: center;
+            font-size: 14px;
+            color: #991B1B;
+            background-color: #FEE2E2;
+            border-radius: 8px;
+        }
+
         .login-link {
             margin-top: 20px;
             text-align: center;
@@ -477,7 +488,8 @@
 
                 <button type="submit" class="btn">Sign Up</button>
 
-                <div class="success" id="successMsg">Account created successfully!</div>
+                <div class="success" id="successMsg">Account created successfully! Redirecting to login...</div>
+                <div class="fail-msg" id="failMsg"></div>
             </form>
 
             <p class="login-link">Already have an account? <a href="login.html">Login</a></p>
@@ -490,6 +502,7 @@
         <b>Build . Learn . Grow</b>
     </footer>
 
+    <script src="js/api.js"></script>
     <script>
         /* ---------- Dark mode (same as index page) ---------- */
         const toggleButton = document.getElementById("Toggle");
@@ -514,6 +527,7 @@
         /* ---------- Signup form validation ---------- */
         const form = document.getElementById("signupForm");
         const successMsg = document.getElementById("successMsg");
+        const failMsg = document.getElementById("failMsg");
 
         function showError(id, message) {
             document.getElementById(id).classList.toggle("invalid", message !== "");
@@ -523,6 +537,7 @@
         form.addEventListener("submit", function (e) {
             e.preventDefault();
             successMsg.style.display = "none";
+            failMsg.style.display = "none";
 
             const name = document.getElementById("name").value.trim();
             const email = document.getElementById("email").value.trim();
@@ -559,9 +574,24 @@
             }
 
             if (valid) {
-                successMsg.style.display = "block";
-                form.reset();
-                // Backend hookup goes here later (e.g. fetch to your signup API)
+                const btn = form.querySelector("button[type=submit]");
+                btn.disabled = true;
+
+                Lexify.signup(name, email, password).then(function () {
+                    successMsg.style.display = "block";
+                    form.reset();
+                    setTimeout(function () { window.location.href = "login.html"; }, 1500);
+                }).catch(function (err) {
+                    const errs = err.errors || {};
+                    ["name", "email", "password"].forEach(function (f) {
+                        if (errs[f]) showError(f, errs[f]);
+                    });
+                    if (!Object.keys(errs).length || err.status === 0) {
+                        failMsg.textContent = err.message || "Sign up failed. Please try again.";
+                        failMsg.style.display = "block";
+                    }
+                    btn.disabled = false;
+                });
             }
         });
     </script>

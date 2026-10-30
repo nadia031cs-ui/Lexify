@@ -523,6 +523,7 @@
         <b>Build . Learn . Grow</b>
     </footer>
 
+    <script src="js/api.js"></script>
     <script>
         /* ---------- Dark mode (same as other pages) ---------- */
         const toggleButton = document.getElementById("Toggle");
@@ -583,10 +584,22 @@
             }
 
             if (valid) {
-                message.className = "message success";
-                message.textContent = "Login successful!";
-                message.style.display = "block";
-                
+                const btn = form.querySelector("button[type=submit]");
+                btn.disabled = true;
+
+                Lexify.login(email, password).then(function () {
+                    message.className = "message success";
+                    message.textContent = "Login successful! Redirecting...";
+                    message.style.display = "block";
+                    setTimeout(function () {
+                        window.location.href = Lexify.nextUrl("index.html");
+                    }, 700);
+                }).catch(function (err) {
+                    message.className = "message fail";
+                    message.textContent = err.message || "Login failed. Please try again.";
+                    message.style.display = "block";
+                    btn.disabled = false;
+                });
             }
         });
     </script>
