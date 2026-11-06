@@ -705,13 +705,14 @@
             <div class="col">
 
                 <section id="editor-panel" class="panel">
+                    <p id="mc-note" style="margin:0 0 10px;font-size:.9rem;color:var(--ink-soft);">This editor compiles the <strong>Lexify mini language</strong> (<code>.mc</code>) to Three Address Code. Types: <code>int</code>, <code>float</code>, <code>bool</code>; statements: assignment, <code>if</code>/<code>else</code>, <code>while</code>, <code>print</code>, nested <code>{ }</code> blocks.</p>
 
                     <div id="input-c">
                         <section id="scroll-c">
                             <div id="tabs">
                                 <div id="tab">
                                     <svg class="icon" aria-hidden="true"><use href="#i-file"/></svg>
-                                    <input type="text" id="fileInput" value="main.cpp" placeholder="File name" aria-label="File name" spellcheck="false">
+                                    <input type="text" id="fileInput" value="main.mc" placeholder="File name" aria-label="File name" spellcheck="false">
                                     <button id="closeTab" class="icon-btn" type="button" aria-label="Close file" style="width:22px;height:22px;"><svg class="icon" style="width:14px;height:14px" aria-hidden="true"><use href="#i-x"/></svg></button>
                                 </div>
                             </div>
@@ -731,6 +732,11 @@
 
                     <div class="controls">
                         <button id="run" type="button"><svg class="icon" aria-hidden="true"><use href="#i-play"/></svg>Run</button>
+                        <select id="view" aria-label="Output view" style="padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);font:inherit;cursor:pointer;">
+                            <option value="tac">TAC</option>
+                            <option value="ast">AST</option>
+                            <option value="symtab">Symbol table</option>
+                        </select>
                     </div>
 
                 </section>
@@ -785,7 +791,7 @@
             "(^[ \\t]*#[ \\t]*\\w+)",                                  // 2 preprocessor
             "(\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\\\n])*')",  // 3 string / char
             "(<(?:iostream|vector|string|cmath|algorithm|map|set|fstream|sstream|cstdio|cstdlib|cstring|iomanip|queue|stack|list|array|memory|utility|numeric|stdio\\.h|stdlib\\.h|string\\.h|math\\.h)>)",                                        // 4 header
-            "\\b(int|char|float|double|void|long|short|unsigned|signed|const|static|struct|typedef|enum|if|else|for|while|do|switch|case|default|break|continue|return|sizeof|class|public|private|protected|namespace|using|new|delete|bool|true|false|auto|template|typename|virtual|this|nullptr|try|catch|throw)\\b", // 5 keyword
+            "\\b(int|float|bool|if|else|while|print|true|false)\\b", // 5 keyword
             "\\b(\\d+(?:\\.\\d+)?)\\b"                                 // 6 number
         ].join("|"), "gm");
 
@@ -834,77 +840,38 @@
         // ---------- Examples ----------
         const EXAMPLES = {
             hello: [
-                "#include <iostream>",
-                "using namespace std;",
+                "int x;",
+                "int y;",
+                "x = 10;",
+                "y = 0;",
                 "",
-                "int main() {",
-                '    cout << "Hello, C++!" << endl;',
-                "    return 0;",
-                "}"
-            ],
-            vars: [
-                "#include <iostream>",
-                "#include <string>",
-                "using namespace std;",
-                "",
-                "int main() {",
-                "    int age = 21;",
-                "    double height = 1.75;",
-                "    char grade = 'A';",
-                '    string name = "Lexify";',
-                '    cout << name << " is " << age << " years old" << endl;',
-                '    cout << "Height: " << height << endl;',
-                '    cout << "Grade: " << grade << endl;',
-                "    return 0;",
-                "}"
-            ],
-            loops: [
-                "#include <iostream>",
-                "using namespace std;",
-                "",
-                "int main() {",
-                "    for (int i = 1; i <= 5; i++) {",
-                "        if (i % 2 == 0) {",
-                '            cout << i << " is even" << endl;',
-                "        } else {",
-                '            cout << i << " is odd" << endl;',
-                "        }",
-                "    }",
-                "    return 0;",
-                "}"
-            ],
-            functions: [
-                "#include <iostream>",
-                "using namespace std;",
-                "",
-                "int add(int a, int b) {",
-                "    return a + b;",
+                "while (x > 0) {",
+                "    y = y + x;",
+                "    x = x - 1;",
                 "}",
+                "print y;"
+            ],
+            branch: [
+                "int x;",
+                "bool flag;",
+                "x = 5;",
+                "flag = true;",
                 "",
-                "int main() {",
-                '    cout << "Sum: " << add(3, 4) << endl;',
-                "    return 0;",
+                "if (flag == true) {",
+                "    print x;",
+                "} else {",
+                "    print 0;",
                 "}"
             ],
-            classes: [
-                "#include <iostream>",
-                "#include <string>",
-                "using namespace std;",
-                "",
-                "class Car {",
-                "public:",
-                "    string name;",
-                "    void drive() {",
-                '        cout << name << " is driving" << endl;',
-                "    }",
-                "};",
-                "",
-                "int main() {",
-                "    Car car;",
-                '    car.name = "Tesla";',
-                "    car.drive();",
-                "    return 0;",
-                "}"
+            scope: [
+                "int a;",
+                "a = 1;",
+                "{",
+                "    int a;",
+                "    a = 2;",
+                "    print a;",
+                "}",
+                "print a;"
             ]
         };
 
@@ -923,7 +890,7 @@
             codeBox.focus();
         }
 
-        document.getElementById("closeTab").addEventListener("click", () => newFile("main.cpp"));
+        document.getElementById("closeTab").addEventListener("click", () => newFile("main.mc"));
 
         document.getElementById("clearBtn").addEventListener("click", () => {
             loadCode("");
@@ -937,38 +904,12 @@
         });
 
         // ---------- Run ----------
-        // DEMO ONLY: this fakes output by echoing the string literals found in cout << ... statements.
-        // Replace the body of this click handler with a call to your real compile/run API
-        // and put the response text into outputBox.value.
-        document.getElementById("run").addEventListener("click", () => {
-            const code = codeBox.value;
-            outputBox.classList.remove("error");
-
-            if (!code.trim()) {
-                outputBox.classList.add("error");
-                outputBox.value = "Nothing to run. Write some code first.";
-                return;
-            }
-
-            if (!/\bmain\s*\(/.test(code)) {
-                outputBox.classList.add("error");
-                outputBox.value = "error: undefined reference to `main'\n[Process exited with code 1]";
-                return;
-            }
-
-            let text = "";
-            const stmts = code.match(/\bcout\s*<<[^;]*;/g) || [];
-            stmts.forEach(stmt => {
-                const body = stmt.replace(/^cout\s*/, "").replace(/;$/, "");
-                body.split(/<<(?=(?:[^"]*"[^"]*")*[^"]*$)/).forEach(part => {
-                    part = part.trim();
-                    if (part === "endl") { text += "\n"; return; }
-                    const lit = part.match(/^"((?:\\.|[^"\\])*)"$/);
-                    if (lit) text += lit[1].replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
-                });
-            });
-
-            outputBox.value = (text ? text.replace(/\n?$/, "\n") : "") + "[Process exited with code 0]";
+        // Sends the code to POST /api/compile (see js/api.js -> Lexify.compile).
+        Lexify.attachCompiler({
+            runBtn: document.getElementById("run"),
+            code: codeBox,
+            output: outputBox,
+            view: document.getElementById("view")
         });
 
         // ---------- Copy output ----------
@@ -985,7 +926,7 @@
 
         // ---------- Start with the Hello World example ----------
         loadCode(EXAMPLES.hello.join("\n"));
-        outputBox.value = "Hello, C++!\n[Process exited with code 0]";
+        outputBox.value = "Press Run to compile.";
     </script>
 </body>
 </html>

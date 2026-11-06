@@ -15,6 +15,9 @@ Errors: any non-2xx status with `{ "message": "...", "errors": { "field": "messa
 | account.html | `PUT /user/profile` | `{name, email, lang}` | `200 {user}` (422 field errors) |
 | account.html | `PUT /user/password` | `{currentPassword, newPassword}` | `200 {ok:true}` (400 wrong current password) |
 | download.html | `POST /downloads` | `{fileName, language, code}` | `201 {download}` |
+| c.html / cpp.html / java.html (Run) | `POST /compile` | `{code}` (Lexify `.mc` source) | `200 {ok, tac, errors, ast, symtab}` |
+
+`/compile` response: on success `{ok:true, tac:"...", ast:"...", symtab:"...", errors:[]}`; on a lexical/syntax/semantic error `{ok:false, errors:["Line 3: ..."]}` (still HTTP 200; use 4xx/5xx only for bad requests or server failure). Guests may call it; if a token is sent the server should increment `runs`.
 
 `user` = `{ id, name, email, lang: "C"|"C++"|"Java", runs, files }` (`files` = number of downloads).
 

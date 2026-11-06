@@ -703,13 +703,14 @@
             <div class="col">
 
                 <section id="editor-panel" class="panel">
+                    <p id="mc-note" style="margin:0 0 10px;font-size:.9rem;color:var(--ink-soft);">This editor compiles the <strong>Lexify mini language</strong> (<code>.mc</code>) to Three Address Code. Types: <code>int</code>, <code>float</code>, <code>bool</code>; statements: assignment, <code>if</code>/<code>else</code>, <code>while</code>, <code>print</code>, nested <code>{ }</code> blocks.</p>
 
                     <div id="input-c">
                         <section id="scroll-c">
                             <div id="tabs">
                                 <div id="tab">
                                     <svg class="icon" aria-hidden="true"><use href="#i-file"/></svg>
-                                    <input type="text" id="fileInput" value="main.c" placeholder="File name" aria-label="File name" spellcheck="false">
+                                    <input type="text" id="fileInput" value="main.mc" placeholder="File name" aria-label="File name" spellcheck="false">
                                     <button id="closeTab" class="icon-btn" type="button" aria-label="Close file" style="width:22px;height:22px;"><svg class="icon" style="width:14px;height:14px" aria-hidden="true"><use href="#i-x"/></svg></button>
                                 </div>
                             </div>
@@ -729,6 +730,11 @@
 
                     <div class="controls">
                         <button id="run" type="button"><svg class="icon" aria-hidden="true"><use href="#i-play"/></svg>Run</button>
+                        <select id="view" aria-label="Output view" style="padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);font:inherit;cursor:pointer;">
+                            <option value="tac">TAC</option>
+                            <option value="ast">AST</option>
+                            <option value="symtab">Symbol table</option>
+                        </select>
                     </div>
 
                 </section>
@@ -783,7 +789,7 @@
             "(^[ \\t]*#[ \\t]*\\w+)",                                  // 2 preprocessor
             "(\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\\\n])*')",  // 3 string / char
             "(<[\\w./]+\\.h>)",                                        // 4 header
-            "\\b(int|char|float|double|void|long|short|unsigned|signed|const|static|struct|typedef|enum|if|else|for|while|do|switch|case|default|break|continue|return|sizeof)\\b", // 5 keyword
+            "\\b(int|float|bool|if|else|while|print|true|false)\\b", // 5 keyword
             "\\b(\\d+(?:\\.\\d+)?)\\b"                                 // 6 number
         ].join("|"), "gm");
 
@@ -832,51 +838,38 @@
         // ---------- Examples ----------
         const EXAMPLES = {
             hello: [
-                "#include <stdio.h>",
-                "#include <stdlib.h>",
+                "int x;",
+                "int y;",
+                "x = 10;",
+                "y = 0;",
                 "",
-                "int main() {",
-                '    printf("Hello, C!\\n");',
-                "    return 0;",
+                "while (x > 0) {",
+                "    y = y + x;",
+                "    x = x - 1;",
+                "}",
+                "print y;"
+            ],
+            branch: [
+                "int x;",
+                "bool flag;",
+                "x = 5;",
+                "flag = true;",
+                "",
+                "if (flag == true) {",
+                "    print x;",
+                "} else {",
+                "    print 0;",
                 "}"
             ],
-            io: [
-                "#include <stdio.h>",
-                "",
-                "int main() {",
-                "    char name[50];",
-                '    printf("Enter your name: ");',
-                '    scanf("%49s", name);',
-                '    printf("Hello, %s!\\n", name);',
-                "    return 0;",
-                "}"
-            ],
-            vars: [
-                "#include <stdio.h>",
-                "",
-                "int main() {",
-                "    int age = 21;",
-                "    float height = 1.75;",
-                "    char grade = 'A';",
-                '    printf("Age: %d\\n", age);',
-                '    printf("Height: %.2f\\n", height);',
-                '    printf("Grade: %c\\n", grade);',
-                "    return 0;",
-                "}"
-            ],
-            loops: [
-                "#include <stdio.h>",
-                "",
-                "int main() {",
-                "    for (int i = 1; i <= 5; i++) {",
-                "        if (i % 2 == 0) {",
-                '            printf("%d is even\\n", i);',
-                "        } else {",
-                '            printf("%d is odd\\n", i);',
-                "        }",
-                "    }",
-                "    return 0;",
-                "}"
+            scope: [
+                "int a;",
+                "a = 1;",
+                "{",
+                "    int a;",
+                "    a = 2;",
+                "    print a;",
+                "}",
+                "print a;"
             ]
         };
 
@@ -895,7 +888,7 @@
             codeBox.focus();
         }
 
-        document.getElementById("closeTab").addEventListener("click", () => newFile("main.c"));
+        document.getElementById("closeTab").addEventListener("click", () => newFile("main.mc"));
 
         document.getElementById("clearBtn").addEventListener("click", () => {
             loadCode("");
@@ -909,33 +902,12 @@
         });
 
         // ---------- Run ----------
-        // DEMO ONLY: this fakes output by echoing the printf("...") strings it finds.
-        // Replace the body of this click handler with a call to your real compile/run API
-        // and put the response text into outputBox.value.
-        document.getElementById("run").addEventListener("click", () => {
-            const code = codeBox.value;
-            outputBox.classList.remove("error");
-
-            if (!code.trim()) {
-                outputBox.classList.add("error");
-                outputBox.value = "Nothing to run. Write some code first.";
-                return;
-            }
-
-            if (!/\bmain\s*\(/.test(code)) {
-                outputBox.classList.add("error");
-                outputBox.value = "error: undefined reference to `main'\n[Process exited with code 1]";
-                return;
-            }
-
-            let text = "";
-            const re = /printf\s*\(\s*"((?:\\.|[^"\\])*)"/g;
-            let m;
-            while ((m = re.exec(code)) !== null) {
-                text += m[1].replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
-            }
-
-            outputBox.value = (text ? text.replace(/\n?$/, "\n") : "") + "[Process exited with code 0]";
+        // Sends the code to POST /api/compile (see js/api.js -> Lexify.compile).
+        Lexify.attachCompiler({
+            runBtn: document.getElementById("run"),
+            code: codeBox,
+            output: outputBox,
+            view: document.getElementById("view")
         });
 
         
@@ -952,7 +924,7 @@
 
         // ---------- Start with the Hello World example ----------
         loadCode(EXAMPLES.hello.join("\n"));
-        outputBox.value = "Hello, C!\n[Process exited with code 0]";
+        outputBox.value = "Press Run to compile.";
     </script>
 </body>
 </html>

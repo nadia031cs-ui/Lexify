@@ -720,13 +720,14 @@
             <div class="col">
 
                 <section id="editor-panel" class="panel">
+                    <p id="mc-note" style="margin:0 0 10px;font-size:.9rem;color:var(--ink-soft);">This editor compiles the <strong>Lexify mini language</strong> (<code>.mc</code>) to Three Address Code. Types: <code>int</code>, <code>float</code>, <code>bool</code>; statements: assignment, <code>if</code>/<code>else</code>, <code>while</code>, <code>print</code>, nested <code>{ }</code> blocks.</p>
 
                     <div id="input-c">
                         <section id="scroll-c">
                             <div id="tabs">
                                 <div id="tab">
                                     <svg class="icon" aria-hidden="true"><use href="#i-file"/></svg>
-                                    <input type="text" id="fileInput" value="Main.java" placeholder="File name" aria-label="File name" spellcheck="false">
+                                    <input type="text" id="fileInput" value="main.mc" placeholder="File name" aria-label="File name" spellcheck="false">
                                     <button id="closeTab" class="icon-btn" type="button" aria-label="Close file" style="width:22px;height:22px;"><svg class="icon" style="width:14px;height:14px" aria-hidden="true"><use href="#i-x"/></svg></button>
                                 </div>
                             </div>
@@ -746,6 +747,11 @@
 
                     <div class="controls">
                         <button id="run" type="button"><svg class="icon" aria-hidden="true"><use href="#i-play"/></svg>Run</button>
+                        <select id="view" aria-label="Output view" style="padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);font:inherit;cursor:pointer;">
+                            <option value="tac">TAC</option>
+                            <option value="ast">AST</option>
+                            <option value="symtab">Symbol table</option>
+                        </select>
                     </div>
 
                 </section>
@@ -797,10 +803,10 @@
 
         const TOKEN = new RegExp([
             "(\\/\\*[\\s\\S]*?\\*\\/|\\/\\/[^\\n]*)",                 // 1 comment
-            "(^[ \\t]*(?:import|package)\\b)",                                  // 2 preprocessor
+            "(^[ \\t]*#[ \\t]*\\w+)",                                  // 2 preprocessor
             "(\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\\\n])*')",  // 3 string / char
-            "(\\b(?!System\\b)[A-Z][A-Za-z0-9_]*\\b)",                                        // 4 header
-            "\\b(public|private|protected|class|interface|extends|implements|static|final|abstract|void|int|long|short|byte|char|float|double|boolean|if|else|for|while|do|switch|case|default|break|continue|return|new|this|super|try|catch|finally|throw|throws|true|false|null|enum|instanceof)\\b", // 5 keyword
+            "(<[\\w./]+\\.h>)",                                        // 4 header
+            "\\b(int|float|bool|if|else|while|print|true|false)\\b", // 5 keyword
             "\\b(\\d+(?:\\.\\d+)?)\\b"                                 // 6 number
         ].join("|"), "gm");
 
@@ -849,68 +855,38 @@
         // ---------- Examples ----------
         const EXAMPLES = {
             hello: [
-                "public class Main {",
-                "    public static void main(String[] args) {",
-                '        System.out.println("Hello, Java!");',
-                "    }",
-                "}"
-            ],
-            io: [
-                "import java.util.Scanner;",
+                "int x;",
+                "int y;",
+                "x = 10;",
+                "y = 0;",
                 "",
-                "public class Main {",
-                "    public static void main(String[] args) {",
-                "        Scanner sc = new Scanner(System.in);",
-                '        System.out.print("Enter your name: ");',
-                "        String name = sc.nextLine();",
-                '        System.out.println("Hello, " + name + "!");',
-                "        sc.close();",
-                "    }",
-                "}"
-            ],
-            vars: [
-                "public class Main {",
-                "    public static void main(String[] args) {",
-                "        int age = 21;",
-                "        double height = 1.75;",
-                "        char grade = 'A';",
-                '        String name = "Lexify";',
-                "        boolean student = true;",
-                '        System.out.println(name + " is " + age + " years old");',
-                '        System.out.println("Height: " + height);',
-                '        System.out.println("Grade: " + grade);',
-                "    }",
-                "}"
-            ],
-            loops: [
-                "public class Main {",
-                "    public static void main(String[] args) {",
-                "        for (int i = 1; i <= 5; i++) {",
-                "            if (i % 2 == 0) {",
-                '                System.out.println(i + " is even");',
-                "            } else {",
-                '                System.out.println(i + " is odd");',
-                "            }",
-                "        }",
-                "    }",
-                "}"
-            ],
-            classes: [
-                "class Car {",
-                "    String name;",
-                "",
-                "    void drive() {",
-                '        System.out.println(name + " is driving");',
-                "    }",
+                "while (x > 0) {",
+                "    y = y + x;",
+                "    x = x - 1;",
                 "}",
+                "print y;"
+            ],
+            branch: [
+                "int x;",
+                "bool flag;",
+                "x = 5;",
+                "flag = true;",
                 "",
-                "public class Main {",
-                "    public static void main(String[] args) {",
-                "        Car car = new Car();",
-                '        car.name = "Tesla";',
-                "        car.drive();",
-                "    }",
+                "if (flag == true) {",
+                "    print x;",
+                "} else {",
+                "    print 0;",
                 "}"
+            ],
+            scope: [
+                "int a;",
+                "a = 1;",
+                "{",
+                "    int a;",
+                "    a = 2;",
+                "    print a;",
+                "}",
+                "print a;"
             ]
         };
 
@@ -929,7 +905,7 @@
             codeBox.focus();
         }
 
-        document.getElementById("closeTab").addEventListener("click", () => newFile("Main.java"));
+        document.getElementById("closeTab").addEventListener("click", () => newFile("main.mc"));
 
         document.getElementById("clearBtn").addEventListener("click", () => {
             loadCode("");
@@ -943,38 +919,12 @@
         });
 
         // ---------- Run ----------
-        // DEMO ONLY: this fakes output by echoing the string literals found in
-        // System.out.println(...) / System.out.print(...) calls.
-        // Replace the body of this click handler with a call to your real compile/run API
-        // and put the response text into outputBox.value.
-        document.getElementById("run").addEventListener("click", () => {
-            const code = codeBox.value;
-            outputBox.classList.remove("error");
-
-            if (!code.trim()) {
-                outputBox.classList.add("error");
-                outputBox.value = "Nothing to run. Write some code first.";
-                return;
-            }
-
-            if (!/\bmain\s*\(/.test(code)) {
-                outputBox.classList.add("error");
-                outputBox.value = "error: no main method found\nProcess exited with code 1";
-                return;
-            }
-
-            let text = "";
-            const re = /System\.out\.(println|print)\s*\(([\s\S]*?)\)\s*;/g;
-            let m;
-            while ((m = re.exec(code)) !== null) {
-                m[2].split(/\+(?=(?:[^"]*"[^"]*")*[^"]*$)/).forEach(part => {
-                    const lit = part.trim().match(/^"((?:\\.|[^"\\])*)"$/);
-                    if (lit) text += lit[1].replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
-                });
-                if (m[1] === "println") text += "\n";
-            }
-
-            outputBox.value = text + "Process exited with code 0";
+        // Sends the code to POST /api/compile (see js/api.js -> Lexify.compile).
+        Lexify.attachCompiler({
+            runBtn: document.getElementById("run"),
+            code: codeBox,
+            output: outputBox,
+            view: document.getElementById("view")
         });
 
         // ---------- Copy output ----------
@@ -991,7 +941,7 @@
 
         // ---------- Start with the Hello World example ----------
         loadCode(EXAMPLES.hello.join("\n"));
-        outputBox.value = "Hello, Java!\nProcess exited with code 0";
+        outputBox.value = "Press Run to compile.";
     </script>
 </body>
 </html>

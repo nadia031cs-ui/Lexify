@@ -161,6 +161,68 @@
         return request("/downloads", { method: "POST", body: info });
     }
 
+
+    // Sends Lexify mini-language source (.mc) to the server compiler.
+    // Resolves to { ok, tac, errors: [string], ast, symtab }.
+    // Works for guests too; if a login token is stored it is sent so the server can count the run.
+    function compile(code) {
+        return request("/compile", { method: "POST", body: { code: String(code) } });
+    }
+
+    function asLines(v) {
+        if (Array.isArray(v)) return v.join("\n");
+        return v ? String(v) : "";
+    }
+
+    // Wires an editor page to the compiler.
+    // opts: { runBtn, code (textarea), output (textarea), view (optional <select> with tac|ast|symtab) }
+    function attachCompiler(opts) {
+        var last = null;
+
+        function show() {
+            var out = opts.output;
+            out.classList.remove("error");
+            if (!last) return;
+            if (!last.ok) {
+                out.classList.add("error");
+                out.value = asLines(last.errors) || "Compilation failed.";
+                return;
+            }
+            var which = opts.view ? opts.view.value : "tac";
+            var text = which === "ast" ? asLines(last.ast)
+                     : which === "symtab" ? asLines(last.symtab)
+                     : asLines(last.tac);
+            out.value = (text ? text.replace(/\n*$/, "\n") : "(empty)\n") + "[Compilation successful]";
+        }
+
+        opts.runBtn.addEventListener("click", function () {
+            var code = opts.code.value;
+            var out = opts.output;
+            out.classList.remove("error");
+
+            if (!code.trim()) {
+                out.classList.add("error");
+                out.value = "Nothing to run. Write some code first.";
+                return;
+            }
+
+            opts.runBtn.disabled = true;
+            out.value = "Compiling...";
+            compile(code).then(function (result) {
+                last = result || { ok: false, errors: ["Empty response from server."] };
+                show();
+            }).catch(function (err) {
+                last = null;
+                out.classList.add("error");
+                out.value = err && err.message ? err.message : "Something went wrong.";
+            }).then(function () {
+                opts.runBtn.disabled = false;
+            });
+        });
+
+        if (opts.view) opts.view.addEventListener("change", show);
+    }
+
     /* ---------- Show Login / Account / Logout depending on session ---------- */
     function applyAuthUI() {
         var logged = isLoggedIn();
@@ -214,6 +276,7 @@
         isLoggedIn: isLoggedIn, getToken: getToken, getUser: getUser,
         clearSession: clearSession, requireLogin: requireLogin, nextUrl: nextUrl,
         signup: signup, login: login, logout: logout, me: me,
-        updateProfile: updateProfile, changePassword: changePassword, logDownload: logDownload
+        updateProfile: updateProfile, changePassword: changePassword, logDownload: logDownload,
+        compile: compile, attachCompiler: attachCompiler
     };
 })(window);
