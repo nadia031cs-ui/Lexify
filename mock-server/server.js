@@ -1,5 +1,5 @@
 /* Lexify mock backend: for testing the frontend WITHOUT a real backend.
-   Run:  node mock-server/server.js   then open http://localhost:3000
+   run:  node mock-server/server.js   then open http://localhost:3000
    Data is kept in memory only (resets when you stop the server).
    Replace with your real backend using the same API (see API.md). */
 const http = require("http");
