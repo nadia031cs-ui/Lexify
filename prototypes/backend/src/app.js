@@ -35,6 +35,7 @@ app.get('/api/health', (req, res) => res.json({ ok: true }));
 app.use('/api/auth', authLimiter, require('./routes/auth'));
 app.use('/api/user', require('./routes/user'));
 app.use('/api/downloads', require('./routes/downloads'));
+app.use('/api/compile', require('./routes/compile'));
 app.use('/api', (req, res) => res.status(404).json({ message: 'Not found.' }));
 
 // Serve the website from the same server (no CORS needed): set FRONTEND_DIR in .env
