@@ -6,9 +6,12 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const os = require("os");
+const { execFile } = require("child_process");
 
 const PORT = process.env.PORT || 3000;
-const WEB_ROOT = path.join(__dirname, "..", "frontend");
+const WEB_ROOT = [path.join(__dirname, "..", "prototypes", "frontend"), path.join(__dirname, "..", "frontend")].find(d => fs.existsSync(d)) || path.join(__dirname, "..", "frontend");
+const BIN = process.env.LEXIFY_BIN || path.join(__dirname, "..", "lexify");
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".json": "application/json" };
 
 const users = new Map();     // email -> { id, name, email, lang, salt, hash, downloads: [] }
@@ -17,7 +20,7 @@ let nextId = 1;
 
 const hashPw = (pw, salt) => crypto.scryptSync(pw, salt, 32).toString("hex");
 const isEmail = e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
-const publicUser = u => ({ id: u.id, name: u.name, email: u.email, lang: u.lang, runs: 0, files: u.downloads.length });
+const publicUser = u => ({ id: u.id, name: u.name, email: u.email, lang: u.lang, runs: u.runs || 0, files: u.downloads.length });
 
 function send(res, status, data) {
     res.writeHead(status, { "Content-Type": "application/json" });
@@ -37,6 +40,29 @@ function authUser(req) {
     const m = (req.headers.authorization || "").match(/^Bearer (.+)$/);
     const user = m && sessions.get(m[1]);
     return user ? { user, token: m[1] } : null;
+}
+
+
+function runBin(file, flag) {
+    return new Promise(resolve => execFile(BIN, flag ? [file, flag] : [file], { timeout: 5000, maxBuffer: 1 << 20 },
+        (err, stdout, stderr) => resolve({ err, stdout, stderr })));
+}
+const stripTac = (out, tac) => (tac && out.endsWith(tac) ? out.slice(0, out.length - tac.length) : out);
+
+async function compile(code) {
+    const file = path.join(os.tmpdir(), "lexify-" + crypto.randomUUID() + ".mc");
+    fs.writeFileSync(file, code);
+    try {
+        const main = await runBin(file);
+        if (main.err && main.err.code === "ENOENT") return { status: 500, data: { message: "Compiler binary not found. Run `make` or set LEXIFY_BIN." } };
+        if (main.err && main.err.killed) return { status: 500, data: { message: "Compiler timed out." } };
+        if (main.err) {
+            const errors = main.stderr.split("\n").map(x => x.trim()).filter(Boolean);
+            return { status: 200, data: { ok: false, errors: errors.length ? errors : ["Compilation failed."] } };
+        }
+        const [a, st] = await Promise.all([runBin(file, "--ast"), runBin(file, "--symtab")]);
+        return { status: 200, data: { ok: true, tac: main.stdout, ast: stripTac(a.stdout, main.stdout), symtab: stripTac(st.stdout, main.stdout), errors: [] } };
+    } finally { try { fs.unlinkSync(file); } catch (e) { } }
 }
 
 async function api(req, res, route) {
@@ -64,6 +90,16 @@ async function api(req, res, route) {
         const token = crypto.randomBytes(32).toString("hex");
         sessions.set(token, u);
         return send(res, 200, { token, user: publicUser(u) });
+    }
+
+    // Guests may compile; a valid token also counts the run
+    if (route === "POST /compile") {
+        const code = body && body.code;
+        if (typeof code !== "string" || !code.trim()) return fail(res, 400, "Source code is required.");
+        if (code.length > 100000) return fail(res, 413, "Source code too large.");
+        const r = await compile(code);
+        if (r.status === 200) { const a = authUser(req); if (a) a.user.runs = (a.user.runs || 0) + 1; }
+        return send(res, r.status, r.data);
     }
 
     // Everything below needs a valid token
