@@ -18,7 +18,7 @@ int   syntax_errors = 0;
 Node *ast_root = NULL;
 %}
 
-%define parse.error verbose
+%error-verbose
 %locations
 
 %union {

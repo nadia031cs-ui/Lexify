@@ -175,7 +175,7 @@
     }
 
     // Wires an editor page to the compiler.
-    // opts: { runBtn, code (textarea), output (textarea), view (optional <select> with tac|ast|symtab) }
+    // opts: { runBtn, code (textarea), output (textarea), view (optional <select> with output|tac|ast|symtab) }
     function attachCompiler(opts) {
         var last = null;
 
@@ -188,7 +188,13 @@
                 out.value = asLines(last.errors) || "Compilation failed.";
                 return;
             }
-            var which = opts.view ? opts.view.value : "tac";
+            var which = opts.view ? opts.view.value : "output";
+            if (which === "output") {
+                if (last.runtimeError) out.classList.add("error");
+                var o = last.output == null ? "" : String(last.output);
+                out.value = o ? o : "(program printed nothing)";
+                return;
+            }
             var text = which === "ast" ? asLines(last.ast)
                      : which === "symtab" ? asLines(last.symtab)
                      : asLines(last.tac);

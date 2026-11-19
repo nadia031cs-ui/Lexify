@@ -60,8 +60,10 @@ async function compile(code) {
             const errors = main.stderr.split("\n").map(x => x.trim()).filter(Boolean);
             return { status: 200, data: { ok: false, errors: errors.length ? errors : ["Compilation failed."] } };
         }
-        const [a, st] = await Promise.all([runBin(file, "--ast"), runBin(file, "--symtab")]);
-        return { status: 200, data: { ok: true, tac: main.stdout, ast: stripTac(a.stdout, main.stdout), symtab: stripTac(st.stdout, main.stdout), errors: [] } };
+        const [a, st, prog] = await Promise.all([runBin(file, "--ast"), runBin(file, "--symtab"), runBin(file, "--run")]);
+        let output = prog.stdout || "";
+        if (prog.err && prog.stderr) output += (output && !output.endsWith("\n") ? "\n" : "") + prog.stderr.trim();
+        return { status: 200, data: { ok: true, output, runtimeError: !!prog.err, tac: main.stdout, ast: stripTac(a.stdout, main.stdout), symtab: stripTac(st.stdout, main.stdout), errors: [] } };
     } finally { try { fs.unlinkSync(file); } catch (e) { } }
 }
 

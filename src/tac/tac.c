@@ -172,7 +172,10 @@ static void gen_stmts(const Node *n) {
         }
         case N_PRINT: {
             char *v = gen_expr(n->a);
-            emit("print %s", v);
+            if (n->name)
+                emit("print %s, \"%s\"", v, n->name);      /* printf specifier kept: %f, %.2f, %c ... */
+            else
+                emit("print %s", v);
             break;
         }
         case N_IF: {

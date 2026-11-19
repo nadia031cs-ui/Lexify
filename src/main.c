@@ -5,6 +5,7 @@
 #include "semantic/semantic.h"
 #include "symbol_table/symbol_table.h"
 #include "tac/tac.h"
+#include "interp/interp.h"
 
 extern FILE *yyin;
 extern int yyparse(void);
@@ -13,16 +14,17 @@ extern int syntax_errors;
 extern Node *ast_root;
 
 int main(int argc, char **argv) {
-    int show_ast = 0, show_symtab = 0;
+    int show_ast = 0, show_symtab = 0, run = 0;
     const char *path = NULL;
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--ast") == 0) show_ast = 1;
         else if (strcmp(argv[i], "--symtab") == 0) show_symtab = 1;
+        else if (strcmp(argv[i], "--run") == 0) run = 1;
         else path = argv[i];
     }
     if (!path) {
-        fprintf(stderr, "Usage: %s <source.mc> [--ast] [--symtab]\n", argv[0]);
+        fprintf(stderr, "Usage: %s <source.mc> [--ast] [--symtab] [--run]\n", argv[0]);
         return 2;
     }
     yyin = fopen(path, "r");
@@ -46,6 +48,17 @@ int main(int argc, char **argv) {
         return 1;
     }
     if (show_symtab) st_dump();
+
+    /* --run: generate the TAC, execute it and print the program's output (like an online C compiler) */
+    if (run) {
+        FILE *tmp = tmpfile();
+        if (!tmp) { perror("tmpfile"); return 2; }
+        tac_generate(ast_root, tmp);
+        rewind(tmp);
+        int rc = interp_run(tmp);
+        fclose(tmp);
+        return rc ? 3 : 0;
+    }
 
     /* Final phase: Three Address Code goes to stdout (redirect with > file.tac) */
     tac_generate(ast_root, stdout);

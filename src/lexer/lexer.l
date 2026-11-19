@@ -9,6 +9,15 @@
 
 int lexical_errors = 0;
 
+/* value of a C character literal body: a  or  \n  \t ... */
+static int char_value(const char *s) {
+    if (s[0] != '\\') return (unsigned char)s[0];
+    switch (s[1]) {
+    case 'n': return '\n';  case 't': return '\t';  case 'r': return '\r';
+    case '0': return 0;     default:  return (unsigned char)s[1];
+    }
+}
+
 /* give every token its line number for the parser (@n.first_line) */
 #define YY_USER_ACTION yylloc.first_line = yylloc.last_line = yylineno;
 %}
@@ -21,6 +30,7 @@ ID      [A-Za-z_][A-Za-z0-9_]*
 %%
 
 "int"       { return INT; }
+"char"      { return INT; }     /* C compatibility: char is stored as an int (use %c to print it) */
 "float"     { return FLOAT; }
 "double"    { return FLOAT; }   /* C compatibility: double is treated as float */
 "bool"      { return BOOL; }
@@ -43,6 +53,8 @@ ID      [A-Za-z_][A-Za-z0-9_]*
                           yylval.sval = q; return STRING_LIT; }
 \"([^\"\\\n]|\\.)*     { fprintf(stderr, "Lexical error at line %d: unterminated string literal\n", yylineno);
                           lexical_errors++; }
+
+'([^'\\\n]|\\.)'   { yylval.ival = char_value(yytext + 1); return INT_LIT; }
 
 "#"[ \t]*"include"[^\n]*   { /* C preprocessor line: ignored */ }
 "#"[ \t]*"define"[^\n]*    { /* C preprocessor line: ignored */ }

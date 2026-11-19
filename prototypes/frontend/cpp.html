@@ -705,7 +705,7 @@
             <div class="col">
 
                 <section id="editor-panel" class="panel">
-                    <p id="mc-note" style="margin:0 0 10px;font-size:.9rem;color:var(--ink-soft);">This editor compiles the <strong>Lexify mini language</strong> (<code>.mc</code>) to Three Address Code. Types: <code>int</code>, <code>float</code>, <code>bool</code>; statements: assignment, <code>if</code>/<code>else</code>, <code>while</code>, <code>print</code>, nested <code>{ }</code> blocks.</p>
+                    <p id="mc-note" style="margin:0 0 10px;font-size:.9rem;color:var(--ink-soft);">Write a small C-style program (<code>int main()</code>, <code>printf</code>, <code>if</code>/<code>else</code>, <code>while</code>, <code>for</code>) and press <strong>Run</strong> to see its output. Use the dropdown to view the TAC, AST or symbol table instead.</p>
 
                     <div id="input-c">
                         <section id="scroll-c">
@@ -733,6 +733,7 @@
                     <div class="controls">
                         <button id="run" type="button"><svg class="icon" aria-hidden="true"><use href="#i-play"/></svg>Run</button>
                         <select id="view" aria-label="Output view" style="padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);font:inherit;cursor:pointer;">
+                            <option value="output">Output</option>
                             <option value="tac">TAC</option>
                             <option value="ast">AST</option>
                             <option value="symtab">Symbol table</option>

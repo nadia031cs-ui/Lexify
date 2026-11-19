@@ -43,7 +43,10 @@ Node *mk_printf(char *fmt, Node *args, int l) {
             if (j < len && strchr("dioufFeEgGcsx", fmt[j])) {
                 if (bi) { buf[bi] = 0; out = list_append(out, mk_print(mk_str(strdup(buf), l), l)); bi = 0; }
                 Node *a = args; args = args->next; a->next = NULL;
-                out = list_append(out, mk_print(a, l));
+                Node *pr = mk_print(a, l);
+                pr->name = malloc(j - i + 2);                 /* the specifier, e.g. "%.2f" */
+                memcpy(pr->name, fmt + i, j - i + 1); pr->name[j - i + 1] = 0;
+                out = list_append(out, pr);
                 i = j;
                 continue;
             }
@@ -81,7 +84,7 @@ static void print_one(const Node *n, int d) {
     case N_BLOCK:   printf("Block\n");   ast_print(n->a, d + 1); break;
     case N_DECL:    printf("Decl %s %s (line %d)\n", type_name(n->type), n->name, n->line); break;
     case N_ASSIGN:  printf("Assign %s (line %d)\n", n->name, n->line); print_one(n->a, d + 1); break;
-    case N_PRINT:   printf("Print (line %d)\n", n->line); print_one(n->a, d + 1); break;
+    case N_PRINT:   printf("Print%s%s (line %d)\n", n->name ? " " : "", n->name ? n->name : "", n->line); print_one(n->a, d + 1); break;
     case N_IF:
         printf("If (line %d)\n", n->line);
         indent(d + 1); printf("Cond:\n");  print_one(n->a, d + 2);

@@ -1,4 +1,4 @@
-// POST /api/compile  { code }  ->  { ok, tac, ast, symtab, errors }
+// POST /api/compile  { code }  ->  { ok, output, tac, ast, symtab, errors }
 // Runs the Lexify C compiler (./lexify) on the submitted .mc source.
 // Guests may call it; if a valid Bearer token is sent, the user's `runs` counter is incremented.
 const express = require('express');
@@ -59,9 +59,14 @@ router.post('/', async (req, res, next) => {
       return res.json({ ok: false, errors: errors.length ? errors : ['Compilation failed.'] });
     }
 
-    const [astRun, symRun] = await Promise.all([run(file, '--ast'), run(file, '--symtab')]);
+    const [astRun, symRun, progRun] = await Promise.all([run(file, '--ast'), run(file, '--symtab'), run(file, '--run')]);
+    // Program output (like an online C compiler). A runtime error keeps what was printed before it.
+    let output = progRun.stdout || '';
+    if (progRun.err && progRun.stderr) output += (output && !output.endsWith('\n') ? '\n' : '') + progRun.stderr.trim();
     res.json({
       ok: true,
+      output,
+      runtimeError: !!progRun.err,
       tac: main.stdout,
       ast: stripTac(astRun.stdout, main.stdout),
       symtab: stripTac(symRun.stdout, main.stdout),

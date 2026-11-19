@@ -6,7 +6,7 @@ TARGET  = lexify
 
 all: $(TARGET)
 
-SRCS    = src/main.c src/ast/ast.c src/symbol_table/symbol_table.c src/semantic/semantic.c src/tac/tac.c
+SRCS    = src/main.c src/ast/ast.c src/symbol_table/symbol_table.c src/semantic/semantic.c src/tac/tac.c src/interp/interp.c
 
 $(TARGET): $(BUILD)/lex.yy.c $(BUILD)/parser.tab.c $(SRCS)
 	$(CC) $(CFLAGS) $^ -o $@
