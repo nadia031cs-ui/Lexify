@@ -1,6 +1,7 @@
 /* Lexify AST - construction and printing */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "ast/ast.h"
 
 static Node *new_node(NodeKind k, int line) {
@@ -23,6 +24,40 @@ Node *mk_id(char *name, int l) { Node *n = new_node(N_ID, l); n->name = name; re
 Node *mk_int(int v, int l) { Node *n = new_node(N_INT, l); n->ival = v; return n; }
 Node *mk_float(double v, int l) { Node *n = new_node(N_FLOAT, l); n->fval = v; return n; }
 Node *mk_bool(int v, int l) { Node *n = new_node(N_BOOL, l); n->ival = v; return n; }
+
+Node *mk_str(char *t, int l) { Node *n = new_node(N_STR, l); n->name = t; return n; }
+Node *mk_return(Node *e, int l) { Node *n = new_node(N_RETURN, l); n->a = e; return n; }
+
+/* printf("a %d b\n", x)  ->  print "a "; print x; print " b\n";
+ * Literal text becomes string prints, each %d/%f/%c/%s/%i/%u/%ld.. takes the next argument. */
+Node *mk_printf(char *fmt, Node *args, int l) {
+    Node *out = NULL;
+    size_t len = strlen(fmt), bi = 0;
+    char *buf = malloc(len + 1);
+    if (!buf) { fprintf(stderr, "out of memory\n"); exit(2); }
+    for (size_t i = 0; i < len; i++) {
+        if (fmt[i] == '%' && i + 1 < len && fmt[i + 1] == '%') { buf[bi++] = '%'; i++; continue; }
+        if (fmt[i] == '%' && args) {
+            size_t j = i + 1;
+            while (j < len && strchr("0123456789.-+ #lhz", fmt[j])) j++;   /* flags / width / length */
+            if (j < len && strchr("dioufFeEgGcsx", fmt[j])) {
+                if (bi) { buf[bi] = 0; out = list_append(out, mk_print(mk_str(strdup(buf), l), l)); bi = 0; }
+                Node *a = args; args = args->next; a->next = NULL;
+                out = list_append(out, mk_print(a, l));
+                i = j;
+                continue;
+            }
+        }
+        buf[bi++] = fmt[i];
+    }
+    if (bi) { buf[bi] = 0; out = list_append(out, mk_print(mk_str(strdup(buf), l), l)); }
+    while (args) {                    /* extra arguments without a specifier: still printed */
+        Node *a = args; args = args->next; a->next = NULL;
+        out = list_append(out, mk_print(a, l));
+    }
+    free(buf);
+    return out;
+}
 
 Node *list_append(Node *list, Node *item) {
     if (!item) return list;
@@ -64,6 +99,8 @@ static void print_one(const Node *n, int d) {
     case N_INT:   printf("Int %d\n", n->ival); break;
     case N_FLOAT: printf("Float %g\n", n->fval); break;
     case N_BOOL:  printf("Bool %s\n", n->ival ? "true" : "false"); break;
+    case N_STR:   printf("String \"%s\"\n", n->name); break;
+    case N_RETURN: printf("Return (line %d)\n", n->line); if (n->a) print_one(n->a, d + 1); break;
     }
 }
 

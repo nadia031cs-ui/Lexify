@@ -6,7 +6,7 @@ typedef enum { T_INT, T_FLOAT, T_BOOL, T_NONE } Type;
 
 typedef enum {
     N_PROGRAM, N_BLOCK, N_DECL, N_ASSIGN, N_PRINT, N_IF, N_WHILE,
-    N_BINOP, N_UNOP, N_ID, N_INT, N_FLOAT, N_BOOL
+    N_BINOP, N_UNOP, N_ID, N_INT, N_FLOAT, N_BOOL, N_STR, N_RETURN
 } NodeKind;
 
 typedef struct Node {
@@ -34,6 +34,9 @@ Node *mk_id(char *name, int line);
 Node *mk_int(int v, int line);
 Node *mk_float(double v, int line);
 Node *mk_bool(int v, int line);
+Node *mk_str(char *text, int line);              /* string literal (printf text) */
+Node *mk_return(Node *expr, int line);           /* expr may be NULL */
+Node *mk_printf(char *fmt, Node *args, int line);/* expands to a chain of N_PRINT */
 
 Node *list_append(Node *list, Node *item);   /* safe when item == NULL */
 const char *type_name(Type t);

@@ -36,6 +36,7 @@ static Type check_expr(Node *n) {
     case N_INT:   return n->type = T_INT;
     case N_FLOAT: return n->type = T_FLOAT;
     case N_BOOL:  return n->type = T_BOOL;
+    case N_STR:   return n->type = T_NONE;     /* only legal inside print */
 
     case N_ID: {
         Symbol *s = st_lookup(n->name);
@@ -46,6 +47,13 @@ static Type check_expr(Node *n) {
     case N_UNOP: {
         Type t = check_expr(n->a);
         if (t == T_NONE) return n->type = T_NONE;      /* already reported */
+        if (is(n->op, "-")) {                           /* unary minus */
+            if (!is_num(t)) {
+                err(n->line, "invalid expression: operator '-' needs a numeric operand, got '%s'", type_name(t));
+                return n->type = T_NONE;
+            }
+            return n->type = t;
+        }
         if (t != T_BOOL) {
             err(n->line, "invalid expression: operator '%s' needs a bool operand, got '%s'", n->op, type_name(t));
             return n->type = T_NONE;
@@ -144,6 +152,9 @@ static void check_stmts(Node *n) {
         }
         case N_PRINT:
             check_expr(n->a);
+            break;
+        case N_RETURN:
+            if (n->a) check_expr(n->a);
             break;
         case N_IF:
             check_condition(n->a, "if");

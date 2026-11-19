@@ -110,6 +110,12 @@ static char *gen_expr(const Node *n) {
         return dup_str(buf);
     case N_BOOL:
         return dup_str(n->ival ? "true" : "false");
+    case N_STR: {
+        char *q = malloc(strlen(n->name) + 3);
+        if (!q) { fprintf(stderr, "out of memory\n"); exit(2); }
+        sprintf(q, "\"%s\"", n->name);
+        return q;
+    }
     case N_ID:
         return dup_str(lookup(n->name));
 
@@ -157,6 +163,11 @@ static void gen_stmts(const Node *n) {
             char *v = gen_expr(n->a);
             if (n->type == T_FLOAT && n->a->type == T_INT) v = to_float(v);
             emit("%s = %s", lookup(n->name), v);
+            break;
+        }
+        case N_RETURN: {
+            if (n->a) { char *v = gen_expr(n->a); emit("return %s", v); }
+            else emit("return");
             break;
         }
         case N_PRINT: {

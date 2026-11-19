@@ -22,7 +22,12 @@ ID      [A-Za-z_][A-Za-z0-9_]*
 
 "int"       { return INT; }
 "float"     { return FLOAT; }
+"double"    { return FLOAT; }   /* C compatibility: double is treated as float */
 "bool"      { return BOOL; }
+"void"      { return VOID; }
+"return"    { return RETURN; }
+"for"       { return FOR; }
+"printf"    { return PRINTF; }
 "if"        { return IF; }
 "else"      { return ELSE; }
 "while"     { return WHILE; }
@@ -34,6 +39,21 @@ ID      [A-Za-z_][A-Za-z0-9_]*
 {DIGIT}+              { yylval.ival = atoi(yytext); return INT_LIT; }
 {ID}                  { yylval.sval = strdup(yytext); return ID; }
 
+\"([^\"\\\n]|\\.)*\"   { char *q = malloc(yyleng); memcpy(q, yytext + 1, yyleng - 2); q[yyleng - 2] = 0;
+                          yylval.sval = q; return STRING_LIT; }
+\"([^\"\\\n]|\\.)*     { fprintf(stderr, "Lexical error at line %d: unterminated string literal\n", yylineno);
+                          lexical_errors++; }
+
+"#"[ \t]*"include"[^\n]*   { /* C preprocessor line: ignored */ }
+"#"[ \t]*"define"[^\n]*    { /* C preprocessor line: ignored */ }
+
+"++"  { return INC; }
+"--"  { return DEC; }
+"+="  { return ADD_ASSIGN; }
+"-="  { return SUB_ASSIGN; }
+"*="  { return MUL_ASSIGN; }
+"/="  { return DIV_ASSIGN; }
+"%="  { return MOD_ASSIGN; }
 "&&"  { return AND; }
 "||"  { return OR; }
 "=="  { return EQ; }
@@ -41,7 +61,7 @@ ID      [A-Za-z_][A-Za-z0-9_]*
 "<="  { return LE; }
 ">="  { return GE; }
 [<>=!+\-*/%]  { return yytext[0]; }
-[{}();]       { return yytext[0]; }
+[{}();,]      { return yytext[0]; }
 
 "//".*                  { /* single-line comment: discarded */ }
 "/*"                    { BEGIN(BLOCK_COMMENT); }
