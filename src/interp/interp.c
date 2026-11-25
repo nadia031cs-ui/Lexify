@@ -184,6 +184,26 @@ static void print_val(Val v, const char *spec) {
         else printf("%lld", v.i);
         return;
     }
+    if (strcmp(spec, "%C") == 0) {                  /* C++ cout: bool prints 1/0, double like %g */
+        if (v.k == V_FLT) printf("%g", v.f);
+        else printf("%lld", v.i);
+        return;
+    }
+    if (strcmp(spec, "%J") == 0) {                  /* Java println: true/false, 10.0, 11.4 */
+        if (v.k == V_FLT) {
+            char buf[64];
+            double m = v.f < 0 ? -v.f : v.f;
+            int plain = (m == 0.0) || (m >= 1e-3 && m < 1e7);   /* Java prints these without an exponent */
+            for (int p = 1; p <= 17; p++) {         /* shortest text that reads back as the same double */
+                snprintf(buf, sizeof buf, plain ? "%.*f" : "%.*g", p, v.f);
+                if (strtod(buf, NULL) == v.f) break;
+            }
+            fputs(buf, stdout);
+            if (!strpbrk(buf, ".eEn")) fputs(".0", stdout);   /* 1e+20 style / inf / nan untouched */
+        } else if (v.k == V_BOOL) fputs(v.i ? "true" : "false", stdout);
+        else printf("%lld", v.i);
+        return;
+    }
     char fmt[64]; size_t n = 0;
     size_t sl = strlen(spec);
     char conv = spec[sl - 1];

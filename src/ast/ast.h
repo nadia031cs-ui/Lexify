@@ -37,6 +37,8 @@ Node *mk_bool(int v, int line);
 Node *mk_str(char *text, int line);              /* string literal (printf text) */
 Node *mk_return(Node *expr, int line);           /* expr may be NULL */
 Node *mk_printf(char *fmt, Node *args, int line);/* expands to a chain of N_PRINT */
+Node *mk_cout(Node *items, int line);            /* C++  cout << a << "x" << endl;    -> chain of N_PRINT */
+Node *mk_jprint(Node *expr, int newline, int line); /* Java System.out.println("x = " + a); -> chain of N_PRINT */
 
 Node *list_append(Node *list, Node *item);   /* safe when item == NULL */
 const char *type_name(Type t);

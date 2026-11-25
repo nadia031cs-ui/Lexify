@@ -34,6 +34,8 @@ ID      [A-Za-z_][A-Za-z0-9_]*
 "float"     { return FLOAT; }
 "double"    { return FLOAT; }   /* C compatibility: double is treated as float */
 "bool"      { return BOOL; }
+"boolean"   { return BOOL; }     /* Java */
+"long"      { return INT; }      /* C / C++ / Java: stored as int */
 "void"      { return VOID; }
 "return"    { return RETURN; }
 "for"       { return FOR; }
@@ -42,11 +44,16 @@ ID      [A-Za-z_][A-Za-z0-9_]*
 "else"      { return ELSE; }
 "while"     { return WHILE; }
 "print"     { return PRINT; }
+"class"     { return CLASS; }    /* Java: class Main { ... } */
+"cout"      { return COUT; }     /* C++ */
+"endl"      { return ENDL; }     /* C++ */
+"public"|"private"|"protected"|"static"|"final" { /* Java modifiers: ignored */ }
 "true"      { return TRUE_LIT; }
 "false"     { return FALSE_LIT; }
 
-{DIGIT}+"."{DIGIT}+   { yylval.fval = atof(yytext); return FLOAT_LIT; }
-{DIGIT}+              { yylval.ival = atoi(yytext); return INT_LIT; }
+{DIGIT}+"."{DIGIT}+[fFdD]?  { yylval.fval = atof(yytext); return FLOAT_LIT; }   /* 5.7, 5.7f (C++/Java) */
+{DIGIT}+[fFdD]        { yylval.fval = atof(yytext); return FLOAT_LIT; }   /* 2f, 2d (Java) */
+{DIGIT}+[lL]?         { yylval.ival = atoi(yytext); return INT_LIT; }     /* 10, 10L */
 {ID}                  { yylval.sval = strdup(yytext); return ID; }
 
 \"([^\"\\\n]|\\.)*\"   { char *q = malloc(yyleng); memcpy(q, yytext + 1, yyleng - 2); q[yyleng - 2] = 0;
@@ -54,11 +61,22 @@ ID      [A-Za-z_][A-Za-z0-9_]*
 \"([^\"\\\n]|\\.)*     { fprintf(stderr, "Lexical error at line %d: unterminated string literal\n", yylineno);
                           lexical_errors++; }
 
-'([^'\\\n]|\\.)'   { yylval.ival = char_value(yytext + 1); return INT_LIT; }
+'([^'\\\n]|\\.)'   { yylval.ival = char_value(yytext + 1); return CHAR_LIT; }
 
 "#"[ \t]*"include"[^\n]*   { /* C preprocessor line: ignored */ }
 "#"[ \t]*"define"[^\n]*    { /* C preprocessor line: ignored */ }
 
+ /* ---- C++ ---- */
+"using"[ \t]+"namespace"[ \t]+{ID}[ \t]*";"   { /* using namespace std;  ignored */ }
+"std"[ \t]*"::"                                { /* std::cout, std::endl -> cout, endl */ }
+
+ /* ---- Java ---- */
+"import"[ \t][^\n;]*";"                        { /* import java.util.*;  ignored */ }
+"System"[ \t]*"."[ \t]*"out"[ \t]*"."[ \t]*"println"  { return PRINTLN; }
+"System"[ \t]*"."[ \t]*"out"[ \t]*"."[ \t]*"printf"   { return PRINTF; }
+"System"[ \t]*"."[ \t]*"out"[ \t]*"."[ \t]*"print"    { return JPRINT; }
+
+"<<"  { return SHL; }   /* C++: cout << x */
 "++"  { return INC; }
 "--"  { return DEC; }
 "+="  { return ADD_ASSIGN; }
@@ -73,7 +91,7 @@ ID      [A-Za-z_][A-Za-z0-9_]*
 "<="  { return LE; }
 ">="  { return GE; }
 [<>=!+\-*/%]  { return yytext[0]; }
-[{}();,]      { return yytext[0]; }
+[{}();,\[\]] { return yytext[0]; }
 
 "//".*                  { /* single-line comment: discarded */ }
 "/*"                    { BEGIN(BLOCK_COMMENT); }

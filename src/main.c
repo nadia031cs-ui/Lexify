@@ -1,6 +1,8 @@
 /* Lexify driver: lexer -> parser -> AST -> semantic -> TAC */
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <time.h>
 #include "ast/ast.h"
 #include "semantic/semantic.h"
 #include "symbol_table/symbol_table.h"
@@ -52,11 +54,20 @@ int main(int argc, char **argv) {
     /* --run: generate the TAC, execute it and print the program's output (like an online C compiler) */
     if (run) {
         FILE *tmp = tmpfile();
+        char tmpname[1024] = "";
+        if (!tmp) {   /* Windows: tmpfile() may need admin rights, so use a file in %TEMP% instead */
+            const char *dir = getenv("TEMP");
+            if (!dir) dir = getenv("TMP");
+            if (!dir) dir = ".";
+            snprintf(tmpname, sizeof tmpname, "%s/lexify_run_%ld.tac", dir, (long)clock());
+            tmp = fopen(tmpname, "w+");
+        }
         if (!tmp) { perror("tmpfile"); return 2; }
         tac_generate(ast_root, tmp);
         rewind(tmp);
         int rc = interp_run(tmp);
         fclose(tmp);
+        if (tmpname[0]) remove(tmpname);
         return rc ? 3 : 0;
     }
 

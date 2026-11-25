@@ -18,7 +18,7 @@ int   syntax_errors = 0;
 Node *ast_root = NULL;
 %}
 
-%error-verbose
+%define parse.error verbose
 %locations
 
 %union {
@@ -31,6 +31,8 @@ Node *ast_root = NULL;
 
 %token INT FLOAT BOOL IF ELSE WHILE PRINT TRUE_LIT FALSE_LIT
 %token VOID RETURN FOR PRINTF
+%token CLASS COUT ENDL SHL PRINTLN JPRINT     /* C++ / Java syntax */
+%token <ival> CHAR_LIT
 %token INC DEC ADD_ASSIGN SUB_ASSIGN MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN
 %token <sval> STRING_LIT
 %token <sval> ID
@@ -50,6 +52,7 @@ Node *ast_root = NULL;
 
 %type <node> program stmt_list stmt block decl_stmt declarators declarator simple
 %type <node> func_def for_init for_cond for_step print_args expr_list expr
+%type <node> class_def cout_items cout_item
 %type <type> type
 
 %%
@@ -66,6 +69,11 @@ stmt        : decl_stmt ';'             { $$ = $1; }
             | PRINT expr ';'            { $$ = mk_print($2, @1.first_line); }
             | PRINTF '(' print_args ')' ';'
                                         { $$ = $3; }
+            | COUT SHL cout_items ';'   { $$ = mk_cout($3, @1.first_line); }          /* C++  */
+            | PRINTLN '(' ')' ';'       { $$ = mk_jprint(NULL, 1, @1.first_line); }   /* Java */
+            | PRINTLN '(' expr ')' ';'  { $$ = mk_jprint($3, 1, @1.first_line); }
+            | JPRINT '(' expr ')' ';'   { $$ = mk_jprint($3, 0, @1.first_line); }
+            | class_def                 { $$ = $1; }
             | RETURN ';'                { $$ = mk_return(NULL, @1.first_line); }
             | RETURN expr ';'           { $$ = mk_return($2, @1.first_line); }
             | IF '(' expr ')' stmt %prec LOWER_THAN_ELSE
@@ -89,6 +97,22 @@ func_def    : type ID '(' ')' block         { $$ = $5; }
             | type ID '(' VOID ')' block    { $$ = $6; }
             | VOID ID '(' ')' block         { $$ = $5; }
             | VOID ID '(' VOID ')' block    { $$ = $6; }
+            /* Java: (public static) void main(String[] args) { ... } */
+            | VOID ID '(' ID '[' ']' ID ')' block   { free($2); free($4); free($7); $$ = $9; }
+            | VOID ID '(' ID ID '[' ']' ')' block   { free($2); free($4); free($5); $$ = $9; }
+            ;
+
+/* Java: (public) class Main { ... }  -- the class body is compiled as a block */
+class_def   : CLASS ID block            { free($2); $$ = $3; }
+            ;
+
+/* C++: cout << a << " text " << endl; */
+cout_items  : cout_item                 { $$ = $1; }
+            | cout_items SHL cout_item  { $$ = list_append($1, $3); }
+            ;
+
+cout_item   : expr                      { $$ = $1; }
+            | ENDL                      { $$ = mk_str(strdup("\\n"), @1.first_line); }
             ;
 
 block       : '{' stmt_list '}'         { $$ = mk_block($2, @1.first_line); }
@@ -168,6 +192,8 @@ expr        : expr OR expr              { $$ = mk_binop("||", $1, $3, @2.first_l
             | '(' expr ')'              { $$ = $2; }
             | ID                        { $$ = mk_id($1, @1.first_line); }
             | INT_LIT                   { $$ = mk_int($1, @1.first_line); }
+            | CHAR_LIT                  { $$ = mk_int($1, @1.first_line); $$->op = "char"; }
+            | STRING_LIT                { $$ = mk_str($1, @1.first_line); }   /* only legal inside cout / println */
             | FLOAT_LIT                 { $$ = mk_float($1, @1.first_line); }
             | TRUE_LIT                  { $$ = mk_bool(1, @1.first_line); }
             | FALSE_LIT                 { $$ = mk_bool(0, @1.first_line); }

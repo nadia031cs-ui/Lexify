@@ -62,6 +62,50 @@ Node *mk_printf(char *fmt, Node *args, int l) {
     return out;
 }
 
+/* One print without a newline.  Spec "%C" = C++ cout style (bool -> 1/0),
+ * "%J" = Java style (bool -> true/false, double -> 10.0), "%c" = a char literal. */
+static Node *print_item(Node *e, const char *spec, int l) {
+    e->next = NULL;
+    Node *pr = mk_print(e, l);
+    if (e->kind == N_STR) return pr;                       /* text: printed as it is */
+    if (e->kind == N_INT && e->op && strcmp(e->op, "char") == 0) spec = "%c";
+    pr->name = strdup(spec);
+    return pr;
+}
+
+/* cout << a << " text " << endl;   ->  print a, "%C"; print " text "; print "\n" */
+Node *mk_cout(Node *items, int l) {
+    Node *out = NULL;
+    while (items) {
+        Node *e = items; items = items->next;
+        out = list_append(out, print_item(e, "%C", l));
+    }
+    return out;
+}
+
+/* Java string concatenation is left-associative: "x" + a + b  ==  ("x" + a) + b.
+ * A '+' whose operands contain a string is concatenation; otherwise it is arithmetic. */
+static int has_string(const Node *e) {
+    if (!e) return 0;
+    if (e->kind == N_STR) return 1;
+    return e->kind == N_BINOP && strcmp(e->op, "+") == 0 && (has_string(e->a) || has_string(e->b));
+}
+
+static Node *concat_parts(Node *e, int l) {
+    if (e->kind == N_BINOP && strcmp(e->op, "+") == 0 && has_string(e)) {
+        Node *left = concat_parts(e->a, l);
+        return list_append(left, concat_parts(e->b, l));
+    }
+    return print_item(e, "%J", l);
+}
+
+/* System.out.println("Largest = " + largest);  ->  print "Largest = "; print largest, "%J"; print "\n" */
+Node *mk_jprint(Node *e, int newline, int l) {
+    Node *out = e ? concat_parts(e, l) : NULL;
+    if (newline) out = list_append(out, mk_print(mk_str(strdup("\\n"), l), l));
+    return out;
+}
+
 Node *list_append(Node *list, Node *item) {
     if (!item) return list;
     if (!list) return item;

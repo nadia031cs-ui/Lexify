@@ -36,7 +36,9 @@ static Type check_expr(Node *n) {
     case N_INT:   return n->type = T_INT;
     case N_FLOAT: return n->type = T_FLOAT;
     case N_BOOL:  return n->type = T_BOOL;
-    case N_STR:   return n->type = T_NONE;     /* only legal inside print */
+    case N_STR:                                  /* only legal as a whole print item */
+        err(n->line, "invalid expression: a string literal can only be printed (printf / cout / println)");
+        return n->type = T_NONE;
 
     case N_ID: {
         Symbol *s = st_lookup(n->name);
@@ -151,7 +153,7 @@ static void check_stmts(Node *n) {
             break;
         }
         case N_PRINT:
-            check_expr(n->a);
+            if (n->a->kind != N_STR) check_expr(n->a);
             break;
         case N_RETURN:
             if (n->a) check_expr(n->a);
