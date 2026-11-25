@@ -190,6 +190,8 @@
         .field { flex: 1; min-width: 200px; }
         .field label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; color: #334155; }
         .field input[type="text"] { width: 100%; padding: 10px 14px; font: inherit; border: 1px solid #CBD5E1; border-radius: 10px; background: #FFFFFF; color: #0F172A; }
+        .field select { width: 100%; padding: 10px 14px; font: inherit; border: 1px solid #CBD5E1; border-radius: 10px; background: #FFFFFF; color: #0F172A; cursor: pointer; }
+        .field select:focus { outline: 2px solid var(--blue-light); outline-offset: 1px; }
         .field input[type="text"]:focus, textarea:focus { outline: 2px solid var(--blue-light); outline-offset: 1px; }
 
         .btn { display: inline-block; padding: 10px 22px; font: inherit; font-weight: 600; border-radius: 999px; border: 1px solid var(--blue); background: #FFFFFF; color: var(--blue); cursor: pointer; transition: 0.3s ease; }
@@ -226,6 +228,7 @@
         .dark-mode .lang-tab[aria-pressed="true"][data-lang="cpp"] { border-color: #F87171; background: #3B0F14; }
         .dark-mode .lang-tab[aria-pressed="true"][data-lang="java"] { border-color: #FB923C; background: #3A1D08; }
         .dark-mode .field label { color: #CBD5E1; }
+        .dark-mode .field select { background: #0F172A; border-color: #334155; color: #F8FAFC; }
         .dark-mode .field input[type="text"], .dark-mode textarea { background: #0F172A; border-color: #334155; color: #F8FAFC; }
         .dark-mode .btn { background: #1E293B; }
         .dark-mode .btn-primary { background: var(--blue); }
@@ -287,8 +290,8 @@
     
     <section id="dl-hero">
         <span>Download Code</span>
-        <h1>Save Your Code as PDF</h1>
-        <p>Choose a language, paste or upload your code and download it as a PDF to your computer.</p>
+        <h1>Download Your Code</h1>
+        <p>The program from your compiler page opens here. Pick a language and a format (source file, text file or PDF), or paste / upload code, then download it.</p>
     </section>
 
     <section id="dl-main">
@@ -305,9 +308,13 @@
                     <label for="fileName">File name</label>
                     <input id="fileName" type="text" value="main" autocomplete="off" spellcheck="false">
                 </div>
+                <div class="field">
+                    <label for="format">Format</label>
+                    <select id="format"></select>
+                </div>
                 <div>
                     <button type="button" class="btn" id="uploadBtn">Upload code file</button>
-                    <input id="fileInput" type="file" accept=".c,.cpp,.cc,.h,.hpp,.java,.txt">
+                    <input id="fileInput" type="file" accept=".c,.cpp,.cc,.h,.hpp,.java,.mc,.txt">
                 </div>
             </div>
 
@@ -315,7 +322,7 @@
             <textarea id="code" spellcheck="false" placeholder="Paste your code here..."></textarea>
 
             <div class="actions">
-                <button type="button" class="btn btn-primary" id="downloadBtn">Download PDF</button>
+                <button type="button" class="btn btn-primary" id="downloadBtn">Download</button>
                 <button type="button" class="btn" id="clearBtn">Clear</button>
                 <span id="status" role="status"></span>
             </div>
@@ -364,6 +371,26 @@
         const nameEl = document.getElementById("fileName");
         const statusEl = document.getElementById("status");
         const tabs = document.querySelectorAll(".lang-tab");
+        const formatEl = document.getElementById("format");
+
+        // Safe file name for the chosen language, always with the right extension.
+        function target() {
+            const ext = LANGS[lang].ext;
+            const fileName = Lexify.fileNameFor(nameEl.value, ext, lang === "java" ? "Main" : "main");
+            return { base: fileName.slice(0, fileName.lastIndexOf(".")), ext: ext, fileName: fileName };
+        }
+
+        // Source file / Text file / PDF  (the source option follows the selected language)
+        function renderFormats() {
+            const keep = formatEl.value || "src";
+            formatEl.innerHTML = "";
+            [["src", "Source file (." + LANGS[lang].ext + ")"], ["txt", "Text file (.txt)"], ["pdf", "PDF document (.pdf)"]].forEach(function (o) {
+                const opt = document.createElement("option");
+                opt.value = o[0]; opt.textContent = o[1];
+                formatEl.appendChild(opt);
+            });
+            formatEl.value = keep;
+        }
 
         function say(msg, isErr) { statusEl.textContent = msg; statusEl.className = isErr ? "err" : ""; }
 
@@ -375,6 +402,7 @@
             if (current === "" || isSample) codeEl.value = LANGS[l].sample;
             if (l === "java" && nameEl.value.trim().toLowerCase() === "main") nameEl.value = "Main";
             if (l !== "java" && nameEl.value === "Main") nameEl.value = "main";
+            renderFormats();
         }
         tabs.forEach(function (t) { t.addEventListener("click", function () { setLang(t.dataset.lang); }); });
 
@@ -390,6 +418,7 @@
                 if (map[ext]) { lang = map[ext]; tabs.forEach(function (t) { t.setAttribute("aria-pressed", t.dataset.lang === lang ? "true" : "false"); }); }
                 codeEl.value = r.result;
                 nameEl.value = m ? m[1] : f.name;
+                renderFormats();
                 say("Loaded " + f.name);
             };
             r.readAsText(f);
@@ -400,8 +429,7 @@
 
         function makePdf() {
             const code = codeEl.value.replace(/\r\n?/g, "\n").replace(/\t/g, "    ").replace(/[^\x20-\x7E\n]/g, "?");
-            const base = (nameEl.value.trim() || "code").replace(/[\\/:*?"<>|]+/g, "_").replace(/\.(c|cpp|java)$/i, "");
-            const fileName = base + "." + LANGS[lang].ext;
+            const t = target(), base = t.base, fileName = t.fileName;
 
             const doc = new window.jspdf.jsPDF({ unit: "pt", format: "a4" });
             const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
@@ -439,25 +467,53 @@
                 doc.text("Page " + p + " of " + n, W / 2, H - 20, { align: "center" });
             }
             doc.save(base + ".pdf");
-            return { fileName: fileName, language: LANGS[lang].label, code: codeEl.value };
+        }
+
+        function saveBlob(blob, name) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = name;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
         }
 
         document.getElementById("downloadBtn").addEventListener("click", function () {
             if (!codeEl.value.trim()) { say("Write or paste some code first.", true); return; }
-            if (!window.jspdf) { say("PDF library could not load. Check your internet connection and reload.", true); return; }
             if (Lexify.CONFIG.DOWNLOAD_REQUIRES_LOGIN && !Lexify.isLoggedIn()) { Lexify.requireLogin(); return; }
 
-            let info;
-            try { info = makePdf(); } catch (err) { say("Something went wrong: " + err.message, true); return; }
-            say("PDF downloaded.");
+            const fmt = formatEl.value;                      // "src" | "txt" | "pdf"
+            const t = target();
+            let savedAs;
+            try {
+                if (fmt === "pdf") {
+                    if (!window.jspdf) { say("PDF library could not load. Check your internet connection and reload.", true); return; }
+                    makePdf();
+                    savedAs = t.base + ".pdf";
+                } else {
+                    savedAs = t.base + "." + (fmt === "txt" ? "txt" : t.ext);
+                    saveBlob(new Blob([codeEl.value], { type: "text/plain;charset=utf-8" }), savedAs);
+                }
+            } catch (err) { say("Something went wrong: " + err.message, true); return; }
+            say("Downloaded " + savedAs);
 
-            // Save a record on the server (the PDF is already on the user's computer either way).
+            // Save a record on the server (the file is already on the user's computer either way).
             if (Lexify.isLoggedIn()) {
-                Lexify.logDownload(info).catch(function () { say("PDF downloaded (could not save history).", true); });
+                Lexify.logDownload({ fileName: savedAs, language: LANGS[lang].label, code: codeEl.value })
+                    .catch(function () { say("Downloaded " + savedAs + " (could not save history).", true); });
             }
         });
 
-        codeEl.value = LANGS.c.sample;
+        // Open with the program written on a compiler page (if any), otherwise with a sample.
+        const current = Lexify.loadCurrent();
+        if (current && current.code.trim()) {
+            setLang(current.ext);                            // ext values match the tab keys: c / cpp / java
+            codeEl.value = current.code;
+            nameEl.value = current.base;
+            say("Loaded your program from the " + current.language + " compiler.");
+        } else {
+            codeEl.value = LANGS.c.sample;
+        }
+        renderFormats();
     </script>
 
 </body>

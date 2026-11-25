@@ -229,6 +229,40 @@
         if (opts.view) opts.view.addEventListener("change", show);
     }
 
+    /* ---------- Program shared between the compiler pages and download.html ---------- */
+    var CURRENT_KEY = "lexify_current";
+    var LANG_EXT = { "C": "c", "C++": "cpp", "Java": "java" };
+    var MAX_SAVED_CODE = 500000;   // same limit the server uses for downloads
+
+    // Safe base name + the right extension: ("my file.mc", "c") -> "my_file.c".
+    function fileNameFor(name, ext, fallbackBase) {
+        var base = String(name == null ? "" : name).trim()
+            .replace(/\.(mc|c|cc|cpp|h|hpp|java|txt|pdf)$/i, "")
+            .replace(/[^A-Za-z0-9_]+/g, "_")
+            .slice(0, 60);
+        if (!base.replace(/_/g, "")) base = fallbackBase || "main";
+        if (ext === "java" && /^[0-9]/.test(base)) base = "_" + base;   // Java names can't start with a digit
+        return base + "." + ext;
+    }
+
+    // Compiler pages call this while the user types; download.html reads it back.
+    function saveCurrent(info) {
+        if (!info || typeof info.code !== "string" || info.code.length > MAX_SAVED_CODE) return;
+        write(CURRENT_KEY, JSON.stringify({
+            language: info.language, fileName: info.fileName, page: info.page, code: info.code
+        }));
+    }
+
+    // Returns { language, ext, base, fileName, page, code } or null if nothing valid is saved.
+    function loadCurrent() {
+        var d;
+        try { d = JSON.parse(read(CURRENT_KEY)); } catch (e) { return null; }
+        if (!d || typeof d.code !== "string" || !Object.prototype.hasOwnProperty.call(LANG_EXT, d.language)) return null;
+        var m = /^([A-Za-z0-9_]+)\.(c|cpp|java)$/.exec(String(d.fileName));
+        if (!m || m[2] !== LANG_EXT[d.language]) return null;
+        return { language: d.language, ext: m[2], base: m[1], fileName: d.fileName, page: String(d.page || ""), code: d.code };
+    }
+
     /* ---------- Show Login / Account / Logout depending on session ---------- */
     function applyAuthUI() {
         var logged = isLoggedIn();
@@ -283,6 +317,7 @@
         clearSession: clearSession, requireLogin: requireLogin, nextUrl: nextUrl,
         signup: signup, login: login, logout: logout, me: me,
         updateProfile: updateProfile, changePassword: changePassword, logDownload: logDownload,
-        compile: compile, attachCompiler: attachCompiler
+        compile: compile, attachCompiler: attachCompiler,
+        fileNameFor: fileNameFor, saveCurrent: saveCurrent, loadCurrent: loadCurrent, LANG_EXT: LANG_EXT
     };
 })(window);
