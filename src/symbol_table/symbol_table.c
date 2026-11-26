@@ -36,6 +36,8 @@ void st_exit(void) {
     free(old);
 }
 
+int st_level(void) { return level; }
+
 Symbol *st_insert(const char *name, Type t, int line) {
     Symbol *s = calloc(1, sizeof(Symbol));
     if (!s) { fprintf(stderr, "out of memory\n"); exit(2); }
@@ -68,8 +70,11 @@ Symbol *st_find_inactive(const char *name) {
 }
 
 void st_dump(void) {
-    printf("%-12s %-6s %-6s %s\n", "Name", "Type", "Scope", "Line");
-    printf("------------ ------ ------ ----\n");
-    for (Symbol *p = all_head; p; p = p->next_all)
-        printf("%-12s %-6s %-6d %d\n", p->name, type_name(p->type), p->scope, p->line);
+    printf("%-12s %-10s %-6s %s\n", "Name", "Type", "Scope", "Line");
+    printf("------------ ---------- ------ ----\n");
+    for (Symbol *p = all_head; p; p = p->next_all) {
+        char t[80];
+        snprintf(t, sizeof t, "%s%s", type_name_dims(p->type, p->dims), p->is_func ? "()" : "");
+        printf("%-12s %-10s %-6d %d\n", p->name, t, p->scope, p->line);
+    }
 }

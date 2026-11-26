@@ -10,8 +10,14 @@ const os = require("os");
 const { execFile } = require("child_process");
 
 const PORT = process.env.PORT || 3000;
-const WEB_ROOT = [path.join(__dirname, "..", "prototypes", "frontend"), path.join(__dirname, "..", "frontend")].find(d => fs.existsSync(d)) || path.join(__dirname, "..", "frontend");
-const BIN = process.env.LEXIFY_BIN || path.join(__dirname, "..", "lexify");
+// Works from Lexify/mock-server/ and from the Lexify/ root copy (server.js)
+const WEB_ROOT = [path.join(__dirname, "..", "prototypes", "frontend"), path.join(__dirname, "prototypes", "frontend"),
+                  path.join(__dirname, "..", "frontend"), path.join(__dirname, "frontend")].find(d => fs.existsSync(d)) || path.join(__dirname, "..", "frontend");
+const BIN = process.env.LEXIFY_BIN ||
+    [path.join(__dirname, "..", "lexify"), path.join(__dirname, "lexify"), path.join(__dirname, "..", "lexify.exe"), path.join(__dirname, "lexify.exe")]
+        .find(f => fs.existsSync(f)) || path.join(__dirname, "..", "lexify");
+// Each page sends its language; the file extension tells the compiler which rules to use.
+const LANG_EXT = { "C": ".c", "C++": ".cpp", "Java": ".java" };
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".json": "application/json" };
 
 const users = new Map();     // email -> { id, name, email, lang, salt, hash, downloads: [] }
@@ -43,14 +49,19 @@ function authUser(req) {
 }
 
 
-function runBin(file, flag) {
-    return new Promise(resolve => execFile(BIN, flag ? [file, flag] : [file], { timeout: 5000, maxBuffer: 1 << 20 },
-        (err, stdout, stderr) => resolve({ err, stdout, stderr })));
+// stdin always gets the user's input (or nothing) and is closed, so cin / scanf / Scanner never wait
+function runBin(file, flag, input) {
+    return new Promise(resolve => {
+        const child = execFile(BIN, flag ? [file, flag] : [file], { timeout: 5000, maxBuffer: 8 << 20 },
+            (err, stdout, stderr) => resolve({ err, stdout, stderr }));
+        child.stdin.on("error", () => { });
+        child.stdin.end(typeof input === "string" ? input : "");
+    });
 }
 const stripTac = (out, tac) => (tac && out.endsWith(tac) ? out.slice(0, out.length - tac.length) : out);
 
-async function compile(code) {
-    const file = path.join(os.tmpdir(), "lexify-" + crypto.randomUUID() + ".mc");
+async function compile(code, language, input) {
+    const file = path.join(os.tmpdir(), "lexify-" + crypto.randomUUID() + (LANG_EXT[language] || ".mc"));
     fs.writeFileSync(file, code);
     try {
         const main = await runBin(file);
@@ -60,7 +71,7 @@ async function compile(code) {
             const errors = main.stderr.split("\n").map(x => x.trim()).filter(Boolean);
             return { status: 200, data: { ok: false, errors: errors.length ? errors : ["Compilation failed."] } };
         }
-        const [a, st, prog] = await Promise.all([runBin(file, "--ast"), runBin(file, "--symtab"), runBin(file, "--run")]);
+        const [a, st, prog] = await Promise.all([runBin(file, "--ast"), runBin(file, "--symtab"), runBin(file, "--run", input)]);
         let output = prog.stdout || "";
         if (prog.err && prog.stderr) output += (output && !output.endsWith("\n") ? "\n" : "") + prog.stderr.trim();
         return { status: 200, data: { ok: true, output, runtimeError: !!prog.err, tac: main.stdout, ast: stripTac(a.stdout, main.stdout), symtab: stripTac(st.stdout, main.stdout), errors: [] } };
@@ -97,9 +108,11 @@ async function api(req, res, route) {
     // Guests may compile; a valid token also counts the run
     if (route === "POST /compile") {
         const code = body && body.code;
+        const language = body && typeof body.language === "string" ? body.language : "";
+        const input = body && typeof body.input === "string" ? body.input.slice(0, 100000) : "";
         if (typeof code !== "string" || !code.trim()) return fail(res, 400, "Source code is required.");
         if (code.length > 100000) return fail(res, 413, "Source code too large.");
-        const r = await compile(code);
+        const r = await compile(code, language, input);
         if (r.status === 200) { const a = authUser(req); if (a) a.user.runs = (a.user.runs || 0) + 1; }
         return send(res, r.status, r.data);
     }

@@ -743,6 +743,11 @@
                 <section id="output-panel" class="panel">
                     <div class="panel-head">
                         <svg class="icon" aria-hidden="true"><use href="#i-terminal"/></svg>
+                        <label for="stdin">Program input (stdin)</label>
+                    </div>
+                    <textarea id="stdin" rows="3" spellcheck="false" placeholder="Values for scanf, e.g.  5 10 20" style="width:100%;box-sizing:border-box;resize:vertical;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);font-family:ui-monospace,Consolas,monospace;font-size:.95rem;"></textarea>
+                    <div class="panel-head">
+                        <svg class="icon" aria-hidden="true"><use href="#i-terminal"/></svg>
                         <label for="output">Output</label>
                         <button id="copyBtn" class="icon-btn" type="button" aria-label="Copy output"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg></button>
                     </div>

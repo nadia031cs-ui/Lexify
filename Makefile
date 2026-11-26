@@ -7,9 +7,11 @@ TARGET  = lexify
 all: $(TARGET)
 
 SRCS    = src/main.c src/ast/ast.c src/symbol_table/symbol_table.c src/semantic/semantic.c src/tac/tac.c src/interp/interp.c
+HDRS    = src/ast/ast.h src/symbol_table/symbol_table.h src/semantic/semantic.h src/tac/tac.h src/interp/interp.h
+LDLIBS  = -lm
 
-$(TARGET): $(BUILD)/lex.yy.c $(BUILD)/parser.tab.c $(SRCS)
-	$(CC) $(CFLAGS) $^ -o $@
+$(TARGET): $(BUILD)/lex.yy.c $(BUILD)/parser.tab.c $(SRCS) $(HDRS)
+	$(CC) $(CFLAGS) $(BUILD)/lex.yy.c $(BUILD)/parser.tab.c $(SRCS) -o $@ $(LDLIBS)
 
 $(BUILD)/parser.tab.c $(BUILD)/parser.tab.h: src/parser/parser.y | $(BUILD)
 	bison -d -o $(BUILD)/parser.tab.c $<

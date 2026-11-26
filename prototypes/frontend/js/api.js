@@ -162,12 +162,20 @@
     }
 
 
-    // Sends Lexify mini-language source (.mc) to the server compiler.
-    // Resolves to { ok, tac, errors: [string], ast, symtab }.
+    // Sends source code to the server compiler.
+    // language: "C" | "C++" | "Java" (decides the language rules); input: text for cin / scanf / Scanner.
+    // Resolves to { ok, output, tac, errors: [string], ast, symtab }.
     // Works for guests too; if a login token is stored it is sent so the server can count the run.
-    function compile(code) {
-        return request("/compile", { method: "POST", body: { code: String(code) } });
+    function compile(code, language, input) {
+        var body = { code: String(code) };
+        if (language) body.language = String(language);
+        if (input != null) body.input = String(input);
+        return request("/compile", { method: "POST", body: body });
     }
+
+    // Language of the current compiler page (c.html / cpp.html / java.html).
+    var PAGE_LANG = { "c.html": "C", "cpp.html": "C++", "java.html": "Java" };
+    function pageLanguage() { return PAGE_LANG[currentPage()] || ""; }
 
     function asLines(v) {
         if (Array.isArray(v)) return v.join("\n");
@@ -175,7 +183,8 @@
     }
 
     // Wires an editor page to the compiler.
-    // opts: { runBtn, code (textarea), output (textarea), view (optional <select> with output|tac|ast|symtab) }
+    // opts: { runBtn, code (textarea), output (textarea), view (optional <select> with output|tac|ast|symtab),
+    //         language (optional, default: from the page name), input (optional textarea / #stdin for program input) }
     function attachCompiler(opts) {
         var last = null;
 
@@ -214,7 +223,9 @@
 
             opts.runBtn.disabled = true;
             out.value = "Compiling...";
-            compile(code).then(function (result) {
+            var language = opts.language || pageLanguage();
+            var inputBox = opts.input || document.getElementById("stdin");
+            compile(code, language, inputBox ? inputBox.value : "").then(function (result) {
                 last = result || { ok: false, errors: ["Empty response from server."] };
                 show();
             }).catch(function (err) {

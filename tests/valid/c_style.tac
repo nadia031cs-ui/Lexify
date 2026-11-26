@@ -1,6 +1,6 @@
     a = 10
     b = 3
-    f = 2.5
+    f = 2.5f
     d = -1.5
     t1 = a > b
     t2 = b == 0
@@ -22,11 +22,11 @@
     c = t12
     print "Hello, World!\n"
     print "a="
-    print a
+    print a, "%d"
     print " b="
-    print b
+    print b, "%d"
     print " f="
-    print f
+    print f, "%f"
     print "\n"
     t13 = a > b
     ifFalse t13 goto L1
@@ -45,7 +45,7 @@ L2:
 L5:
     t15 = i < 3
     ifFalse t15 goto L6
-    print i
+    print i, "%d"
     print " "
     t16 = i + 1
     i = t16
@@ -63,7 +63,7 @@ L7:
 L8:
     ifFalse ok goto L9
     print "ok "
-    print c
+    print c, "%d"
     print "%\n"
 L9:
     return 0
