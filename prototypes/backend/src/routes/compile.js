@@ -1,5 +1,7 @@
-// POST /api/compile  { code }  ->  { ok, output, tac, ast, symtab, errors }
-// Runs the Lexify C compiler (./lexify) on the submitted .mc source.
+// POST /api/compile  { code, language?, input? }  ->  { ok, output, tac, ast, symtab, errors }
+// Runs the Lexify compiler (./lexify) on the submitted source.
+// language: "C" | "C++" | "Java" (from the page) -> saved as .c / .cpp / .java so the compiler uses that
+// language's rules; anything else is the Lexify mini language (.mc). input: text given to cin / scanf / Scanner.
 // Guests may call it; if a valid Bearer token is sent, the user's `runs` counter is incremented.
 const express = require('express');
 const { execFile } = require('child_process');
@@ -14,7 +16,11 @@ const router = express.Router();
 
 // Path to the compiled binary. Override with LEXIFY_BIN in .env.
 // Default: Lexify/lexify  (this file is Lexify/prototypes/backend/src/routes/compile.js)
-const BIN = process.env.LEXIFY_BIN || path.resolve(__dirname, '../../../../lexify');
+const fsSync = require('fs');
+const PROJECT_BIN = [path.resolve(__dirname, '../../../../lexify.exe'), path.resolve(__dirname, '../../../../lexify')]
+  .find(f => fsSync.existsSync(f));
+const BIN = process.env.LEXIFY_BIN || PROJECT_BIN || path.resolve(__dirname, '../../../../lexify');
+console.log('Lexify compiler: ' + BIN);
 
 const findSession = db.prepare('SELECT user_id, expires_at FROM sessions WHERE token_hash = ?');
 const bumpRuns = db.prepare('UPDATE users SET runs = runs + 1 WHERE id = ?');
@@ -27,11 +33,16 @@ function countRun(req) {
   if (s && s.expires_at >= Date.now()) bumpRuns.run(s.user_id);
 }
 
-function run(file, flag) {
+const LANG_EXT = { 'C': '.c', 'C++': '.cpp', 'Java': '.java' };
+
+// stdin always receives `input` (or nothing) and is then closed, so programs that read input never hang
+function run(file, flag, input) {
   return new Promise(resolve => {
     const args = flag ? [file, flag] : [file];
-    execFile(BIN, args, { timeout: 5000, maxBuffer: 1 << 20 }, (err, stdout, stderr) =>
+    const child = execFile(BIN, args, { timeout: 5000, maxBuffer: 8 << 20 }, (err, stdout, stderr) =>
       resolve({ err, stdout, stderr }));
+    child.stdin.on('error', () => {});
+    child.stdin.end(typeof input === 'string' ? input : '');
   });
 }
 
@@ -40,10 +51,12 @@ const stripTac = (out, tac) => (tac && out.endsWith(tac) ? out.slice(0, out.leng
 
 router.post('/', async (req, res, next) => {
   const code = req.body && req.body.code;
+  const language = req.body && typeof req.body.language === 'string' ? req.body.language : '';
+  const input = req.body && typeof req.body.input === 'string' ? req.body.input.slice(0, 100000) : '';
   if (typeof code !== 'string' || !code.trim()) return next(new HttpError(400, 'Source code is required.'));
   if (code.length > 100000) return next(new HttpError(413, 'Source code too large.'));
 
-  const file = path.join(os.tmpdir(), `lexify-${crypto.randomUUID()}.mc`);
+  const file = path.join(os.tmpdir(), `lexify-${crypto.randomUUID()}${LANG_EXT[language] || '.mc'}`);
   try {
     await fs.writeFile(file, code);
 
@@ -59,7 +72,7 @@ router.post('/', async (req, res, next) => {
       return res.json({ ok: false, errors: errors.length ? errors : ['Compilation failed.'] });
     }
 
-    const [astRun, symRun, progRun] = await Promise.all([run(file, '--ast'), run(file, '--symtab'), run(file, '--run')]);
+    const [astRun, symRun, progRun] = await Promise.all([run(file, '--ast'), run(file, '--symtab'), run(file, '--run', input)]);
     // Program output (like an online C compiler). A runtime error keeps what was printed before it.
     let output = progRun.stdout || '';
     if (progRun.err && progRun.stderr) output += (output && !output.endsWith('\n') ? '\n' : '') + progRun.stderr.trim();
