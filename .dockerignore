@@ -1,0 +1,9 @@
+.git
+build
+lexify
+lexify.exe
+**/*.exe
+**/node_modules
+prototypes/backend/.env
+prototypes/backend/data/*.db
+prototypes/backend/data/*.db-*
